@@ -64,14 +64,22 @@ function Snap.FindSnap(rect, candidates, threshold)
     return best
 end
 
--- Walks the chain from the prospective target back up. Depth is at most three.
+-- Walks the chain from the prospective target back up. Depth is at most three
+-- in a healthy link set, but a corrupt saved set can hold a cycle that does not
+-- pass through `from`, so the walk records what it has seen. A repeat means the
+-- structure is already broken: refuse the link rather than extend it, and above
+-- all return rather than spin - Lua has no preemption here, so a spin freezes
+-- the whole client.
 function Snap.WouldCycle(links, from, to)
     local current = to
+    local seen = {}
 
     while current do
-        if current == from then
+        if current == from or seen[current] then
             return true
         end
+
+        seen[current] = true
 
         local link = links[current]
         current = link and link.to or nil

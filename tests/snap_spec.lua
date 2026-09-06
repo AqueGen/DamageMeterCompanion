@@ -86,6 +86,24 @@ describe("Snap.FindSnap", function()
 
         assert.is_nil(Snap.FindSnap(dragged, { dragged }, 15))
     end)
+
+    it("keeps the first candidate when two are equidistant", function()
+        local dragged = Rect(3, 100, 296, 400, 200)
+        local first = Rect(1, 100, 500, 400, 200)
+        local second = Rect(2, 100, 500, 400, 200)
+
+        assert.are.equal(1, Snap.FindSnap(dragged, { first, second }, 15).index)
+    end)
+
+    it("rejects a window that only touches at a corner", function()
+        -- Sits exactly below and to the right: its top equals the target's
+        -- bottom and its left equals the target's right, so neither axis
+        -- overlaps and neither near edge may snap.
+        local dragged = Rect(2, 500, 300, 400, 200)
+        local target = Rect(1, 100, 500, 400, 200)
+
+        assert.is_nil(Snap.FindSnap(dragged, { target }, 15))
+    end)
 end)
 
 describe("Snap.WouldCycle", function()
@@ -107,6 +125,15 @@ describe("Snap.WouldCycle", function()
 
     it("refuses a self link", function()
         assert.is_true(Snap.WouldCycle({}, 2, 2))
+    end)
+
+    it("refuses a link into a chain that already loops, without hanging", function()
+        -- A corrupt saved link set can hold a cycle that does not pass through
+        -- the window being linked. Without a visited set this call never
+        -- returns, and Lua has no preemption, so it would freeze the client.
+        local links = { [1] = { to = 2 }, [2] = { to = 1 } }
+
+        assert.is_true(Snap.WouldCycle(links, 3, 1))
     end)
 end)
 
@@ -140,5 +167,9 @@ describe("Snap.Clamp", function()
 
     it("leaves a value inside the range alone", function()
         assert.are.equal(400, Snap.Clamp(400, 200, 600))
+    end)
+
+    it("returns the minimum when the bounds are inverted", function()
+        assert.are.equal(600, Snap.Clamp(400, 600, 200))
     end)
 end)
