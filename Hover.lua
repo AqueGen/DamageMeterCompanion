@@ -29,7 +29,12 @@ local function OnInitEntry(sessionWindow, frame, elementData)
         pendingTimer = C_Timer.NewTimer(ns.db.hoverDelay, function()
             pendingTimer = nil
 
-            if frame:IsMouseOver() and frame:IsVisible() then
+            -- A sticky window was pinned by a click, and this one window
+            -- serves both roles. Re-showing it would silently un-pin it,
+            -- including when the click landed inside the hover delay.
+            if frame:IsMouseOver()
+                and frame:IsVisible()
+                and not sessionWindow:GetSourceWindow():IsSticky() then
                 local sticky = false
                 sessionWindow:ShowSourceWindow(elementData, sticky)
             end
