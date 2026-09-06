@@ -1,0 +1,15 @@
+## Interface: 120100
+## Title: DamageMeterTweaks
+## Notes: Hover details, right-click menu, window snapping and readable numbers for the built-in Damage Meter.
+## Version: 0.1.0
+## SavedVariables: DamageMeterTweaksDB
+## SavedVariablesPerCharacter: DamageMeterTweaksCharDB
+## X-Category: Combat
+
+Core.lua
+Format.lua
+Hover.lua
+ContextMenu.lua
+Snap.lua
+Presence.lua
+Config.lua
