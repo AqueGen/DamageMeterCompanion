@@ -22,12 +22,20 @@ local function OnInitEntry(sessionWindow, frame, elementData)
         pendingTimer = C_Timer.NewTimer(ns.db.hoverDelay, function()
             pendingTimer = nil
 
-            -- A sticky window was pinned by a click, and this one window
-            -- serves both roles. Re-showing it would silently un-pin it,
+            -- A pinned breakdown was put there by a click, and this one window
+            -- serves both roles, so re-showing it would silently un-pin it -
             -- including when the click landed inside the hover delay.
+            --
+            -- Only while it is on screen, though. Blizzard's OnHide clears the
+            -- source but not the sticky flag, so a breakdown that was pinned
+            -- once and then closed stays flagged sticky for the rest of the
+            -- session, and checking the flag alone would kill hover for good
+            -- after a single click.
+            local sourceWindow = sessionWindow:GetSourceWindow()
+
             if frame:IsMouseOver()
                 and frame:IsVisible()
-                and not sessionWindow:GetSourceWindow():IsSticky() then
+                and not (sourceWindow:IsShown() and sourceWindow:IsSticky()) then
                 local sticky = false
                 sessionWindow:ShowSourceWindow(elementData, sticky)
             end
