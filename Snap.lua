@@ -182,6 +182,25 @@ function Snap.PushSize(index)
     applyingSize = false
 end
 
+-- The gap always separates the two windows, so its sign follows from which
+-- edges were joined rather than being the caller's problem.
+local GAP_DIRECTION = {
+    ["TOPLEFT|BOTTOMLEFT"] = { 0, -1 },
+    ["BOTTOMLEFT|TOPLEFT"] = { 0, 1 },
+    ["TOPLEFT|TOPRIGHT"] = { 1, 0 },
+    ["TOPRIGHT|TOPLEFT"] = { -1, 0 },
+}
+
+function Snap.OffsetForGap(point, relPoint, gap)
+    local direction = GAP_DIRECTION[point .. "|" .. relPoint]
+
+    if not direction or not gap then
+        return 0, 0
+    end
+
+    return direction[1] * gap, direction[2] * gap
+end
+
 function Snap.ApplyLink(index)
     local link = GetLinks()[index]
     local window = Windows.Get(index)
@@ -202,7 +221,8 @@ function Snap.ApplyLink(index)
     end
 
     window:ClearAllPoints()
-    window:SetPoint(link.point, target, link.relPoint, 0, 0)
+    local x, y = Snap.OffsetForGap(link.point, link.relPoint, link.gap)
+    window:SetPoint(link.point, target, link.relPoint, x, y)
 
     -- Keeps our anchored position out of Blizzard's frame position cache, so
     -- next login does not re-impose it as an absolute point.

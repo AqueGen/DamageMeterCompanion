@@ -205,3 +205,40 @@ describe("Snap.Clamp", function()
         assert.are.equal(600, Snap.Clamp(400, 600, 200))
     end)
 end)
+
+describe("Snap.OffsetForGap", function()
+    it("pushes a window below its target further down", function()
+        local x, y = Snap.OffsetForGap("TOPLEFT", "BOTTOMLEFT", 6)
+
+        assert.are.equal(0, x)
+        assert.are.equal(-6, y)
+    end)
+
+    it("pushes a window above its target further up", function()
+        local x, y = Snap.OffsetForGap("BOTTOMLEFT", "TOPLEFT", 6)
+
+        assert.are.equal(0, x)
+        assert.are.equal(6, y)
+    end)
+
+    it("pushes a window to the right of its target further right", function()
+        local x, y = Snap.OffsetForGap("TOPLEFT", "TOPRIGHT", 6)
+
+        assert.are.equal(6, x)
+        assert.are.equal(0, y)
+    end)
+
+    it("pushes a window to the left of its target further left", function()
+        local x, y = Snap.OffsetForGap("TOPRIGHT", "TOPLEFT", 6)
+
+        assert.are.equal(-6, x)
+        assert.are.equal(0, y)
+    end)
+
+    it("is flush with no gap", function()
+        local x, y = Snap.OffsetForGap("TOPLEFT", "BOTTOMLEFT", 0)
+
+        assert.are.equal(0, x)
+        assert.are.equal(0, y)
+    end)
+end)
