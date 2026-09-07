@@ -1,2 +1,24 @@
+# WoW leftovers
 *.bak
-nul
+*.orig
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editor
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+
+# Packager output
+.release/
+*.zip
+RELEASE_NOTES.md
+
+# Superpowers scratch: ledgers, briefs and review packages for a running plan.
+.superpowers/

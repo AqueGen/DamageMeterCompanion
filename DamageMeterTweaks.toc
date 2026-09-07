@@ -1,7 +1,13 @@
 ## Interface: 120100
 ## Title: DamageMeterTweaks
 ## Notes: Hover details, right-click menu, extra meter windows, window snapping with a drop preview, per-pixel sizing and readable numbers for the built-in Damage Meter.
+## Author: AqueGen
+# x-release-please-start-version
 ## Version: 0.3.0
+## X-Curse-Version: 0.3.0
+# x-release-please-end
+## X-License: MIT
+## X-Website: https://github.com/AqueGen/DamageMeterTweaks
 ## SavedVariables: DamageMeterTweaksDB
 ## SavedVariablesPerCharacter: DamageMeterTweaksCharDB
 ## X-Category: Combat

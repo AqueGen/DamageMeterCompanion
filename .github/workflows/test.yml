@@ -1,0 +1,24 @@
+name: tests
+
+on: [push, pull_request]
+
+# Two gates. luac -p catches a syntax error in a file the game would otherwise
+# fail to load at login, and busted runs the pure-logic specs - number
+# formatting, snap geometry, the window registry, the drop preview and the
+# transparency rules. Anything frame-bound is verified in game instead; see
+# docs/IN-GAME-CHECKLIST.md.
+jobs:
+  lua:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: leafo/gh-actions-lua@v10
+        with:
+          luaVersion: "5.1"
+      - uses: leafo/gh-actions-luarocks@v4
+      - name: Install busted
+        run: luarocks install busted
+      - name: Syntax-check every shipped file
+        run: luac -p Core.lua Windows.lua Format.lua Hover.lua ContextMenu.lua Snap.lua Preview.lua Presence.lua Config.lua
+      - name: Unit tests
+        run: busted tests
