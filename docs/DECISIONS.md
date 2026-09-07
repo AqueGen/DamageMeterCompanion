@@ -60,6 +60,8 @@ The old saved variables are still declared in the TOC and adopted once at login 
 
 ## Minor issues left open on purpose
 
+- Four `hooksecurefunc` remain, all on the `DamageMeter` manager rather than on windows or entries: `SetupSessionWindow` (Snap, Presence), `OnWindowAlphaChanged` and the nine appearance setters (Windows). `SetupSessionWindow` shows the window, which refreshes it, so a window opened *in combat* through Show new window runs that one refresh inside our taint and may log the Secret-comparison warning once. Login restore and every Edit Mode change happen out of combat. Replacing these with the sweep is possible and not yet worth it.
+
 - A full scroll-box rebuild during the hover delay can leave the pending timer holding a stale element snapshot. Needs a roster change within ~150ms of a hover; self-corrects.
 - `Snap.PushSize` sets its guard without a `pcall`, so an error inside the walk would latch it until a reload.
 - `Snap.SetLink` does not check that `link.to` names a real window index. A bogus number is persisted and then inert; a non-number is now refused by `Windows.Get`'s type guard rather than throwing during login.
