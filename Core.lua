@@ -139,6 +139,8 @@ local function HandleSlashCommand(input)
     elseif command == "hover" or command == "snap" or command == "menu" or command == "format" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
+    elseif command == "" then
+        ns.Config.Open()
     else
         ns.Print("commands: probe, hover, menu, format, snap")
     end
