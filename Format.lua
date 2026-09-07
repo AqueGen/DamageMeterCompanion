@@ -101,32 +101,41 @@ local function Repaint(entry)
     entry:GetValue():SetText(Format.Compose(Format.SelectValues(entry)))
 end
 
--- Puts Blizzard's own string back. Their UpdateValue is the only thing that
--- knows how to build it, and calling it out of combat is safe because nothing
--- it reads is Secret then. Only ever called from the sweep, so it never runs
--- inside Blizzard's own execution.
-local function Restore(entry)
-    if type(entry.UpdateValue) == "function" then
-        entry:UpdateValue()
-    end
-end
-
-local restorePending = false
-
--- Turning the feature off has to hand the bars back, and a single pass does it:
--- there is nothing to keep repainting afterwards.
-function Format.RequestRestore()
-    restorePending = true
-end
-
-function Format.Sweep()
-    local apply = ns.db.format and Repaint or (restorePending and Restore or nil)
-
-    if not apply then
+-- Blizzard's window only re-fetches its data on the meter's own events, and
+-- those arrive in combat, so the values sitting in its data provider after a
+-- pull are still the Secret objects it fetched while restricted. C_DamageMeter
+-- is documented SecretWhenInCombat - "when combat addon restrictions are in
+-- effect" - so a fetch made out of combat hands back plain numbers. Nothing
+-- Blizzard does asks for that fetch, so we do.
+--
+-- Out of combat only, and that guard is the whole safety argument: their
+-- BuildDataProvider compares totalAmount and source GUIDs, both Secret only
+-- while restricted, so a Refresh from our tainted stack is clean exactly when
+-- InCombatLockdown is false and would log taint warnings otherwise. Rebuilding
+-- also puts Blizzard's own text back on every bar, which is what turning the
+-- feature off needs - the sweep then leaves it alone.
+function Format.RefreshWindows()
+    if InCombatLockdown() then
         return
     end
 
-    restorePending = false
+    ns.Windows.ForEach(function(window)
+        if window:IsShown() then
+            pcall(window.Refresh, window, ScrollBoxConstants.RetainScrollPosition)
+
+            local sourceWindow = window:GetSourceWindow()
+            if sourceWindow:IsShown() then
+                pcall(sourceWindow.Refresh, sourceWindow, ScrollBoxConstants.RetainScrollPosition)
+            end
+        end
+    end)
+end
+
+function Format.Sweep()
+    if not ns.db.format then
+        return
+    end
+
     secretSeen = false
 
     ns.ForEachEntryFrame(function(entry)
@@ -134,7 +143,7 @@ function Format.Sweep()
         -- patch that renames a field would otherwise turn a cosmetic feature
         -- into an error every fifth of a second.
         if not secretSeen then
-            pcall(apply, entry)
+            pcall(Repaint, entry)
         end
     end)
 end
@@ -151,14 +160,21 @@ end
 -- Painting from our own timer instead means our code is never on their stack.
 -- It costs up to one interval of Blizzard's formatting after a change.
 --
--- The sweep deliberately does NOT refuse to run in combat. Whether the values
--- can be read is a question issecretvalue answers per row, and answering it is
--- free; assuming combat always hides them was a guess, and it cost the feature
--- exactly when the numbers are worth reading.
+-- The sweep does not refuse to run in combat: whether a row can be read is a
+-- question issecretvalue answers per row, and answering it is free. What it
+-- does need is data that was fetched out of combat, and RefreshWindows is what
+-- provides that the moment combat ends.
 function Format.Enable()
     local elapsed = 0
 
     local driver = CreateFrame("Frame")
+    driver:RegisterEvent("PLAYER_REGEN_ENABLED")
+    driver:SetScript("OnEvent", function()
+        -- Next frame, not this one: the event fires as the lockdown lifts, and
+        -- a fetch inside the same dispatch may still see the restriction.
+        C_Timer.After(0, Format.RefreshWindows)
+    end)
+
     driver:SetScript("OnUpdate", function(_, delta)
         elapsed = elapsed + delta
 

@@ -56,17 +56,11 @@ local function BuildBehaviourOptions()
     AddCheckbox("format", "Readable numbers",
         "Show 56.72M instead of 56716 K. Only applies once the values stop being secret, which is after combat.",
         function()
-            -- The sweep repaints on its own within a fifth of a second, so
-            -- switching on needs nothing here. Switching off does: our text
-            -- would otherwise sit on the bars until Blizzard next re-rendered
-            -- them, which out of combat could be minutes.
-            --
-            -- Deliberately not Refresh: it runs BuildDataProvider, which
-            -- compares Secret values, and calling it from our stack is the very
-            -- thing that made the meter log taint warnings.
-            if not ns.db.format then
-                ns.Format.RequestRestore()
-            end
+            -- Either direction wants a rebuild. Off: Blizzard's text has to come
+            -- back, and a Refresh out of combat does exactly that. On: the data
+            -- on screen may still be the Secret values fetched during the last
+            -- pull, which the sweep cannot read until they are fetched again.
+            ns.Format.RefreshWindows()
         end)
 
     AddCheckbox("snap", "Snap windows together",
