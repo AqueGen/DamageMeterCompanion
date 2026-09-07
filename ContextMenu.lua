@@ -205,7 +205,15 @@ end
 
 function ContextMenu.Enable()
     VerifyTypeCoverage()
+
+    -- Deliberately before the entryHooks bail: the entry in the meter's own
+    -- gear dropdown does not touch an entry frame and has nothing to do with
+    -- the taint question.
     AddSettingsToWindowDropdown()
+
+    if not ns.db.entryHooks then
+        return
+    end
 
     -- Mixin hook for windows created later, instance hooks for the ones that
     -- already exist and carry their own copy of InitEntry.

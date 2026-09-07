@@ -9,6 +9,13 @@ ns.defaults = {
     snapThreshold = 50,
     idleAlpha = 0.4,
     strata = "MEDIUM",
+
+    -- Diagnostic, not a feature. Hover and the right-click menu install their
+    -- handlers from a hook on DamageMeterSessionWindowMixin:InitEntry, and
+    -- Blizzard's own InitEntry body then runs inside that hook - carrying our
+    -- taint into its Secret comparisons. Turning this off at login installs
+    -- neither hook, which says whether those two are the whole cause.
+    entryHooks = true,
 }
 
 -- windows is keyed by index and holds only our own indices: damageMeterType,
@@ -243,13 +250,16 @@ local function HandleSlashCommand(input)
         ns.Probe()
     elseif command == "diag" then
         ns.Diagnose()
+    elseif command == "entryhooks" then
+        ns.db.entryHooks = not ns.db.entryHooks
+        ns.Print("entry hooks: " .. tostring(ns.db.entryHooks) .. " - reload to apply")
     elseif command == "hover" or command == "snap" or command == "menu" or command == "format" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: diag, probe, hover, menu, format, snap")
+        ns.Print("commands: diag, probe, hover, menu, format, snap, entryhooks")
     end
 end
 

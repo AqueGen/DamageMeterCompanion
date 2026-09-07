@@ -67,6 +67,12 @@ local function OnInitEntry(sessionWindow, frame, elementData)
 end
 
 function Hover.Enable()
+    -- See ns.defaults.entryHooks: this is the switch that tells us whether the
+    -- InitEntry hooks are what taints Blizzard's Secret comparisons in combat.
+    if not ns.db.entryHooks then
+        return
+    end
+
     -- The session windows already exist and carry copies of InitEntry, so the
     -- mixin hook alone would never fire for them.
     hooksecurefunc(DamageMeterSessionWindowMixin, "InitEntry", OnInitEntry)
