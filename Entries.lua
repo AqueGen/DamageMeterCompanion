@@ -1,85 +1,63 @@
 local addonName, ns = ...
 
--- The right-click menu, attached to Blizzard's entry frames
--- from our own sweep rather than from a hook on InitEntry.
+-- Lock, hide, reset and our settings, appended to the type menu every window
+-- already has in its header, through Menu.ModifyMenu - Blizzard's sanctioned
+-- extension point, whose modifiers run inside securecallfunction.
 --
--- Why not the hook: a hooksecurefunc on anything Blizzard calls while it
--- renders the list runs their body inside our taint, and their entry setup
--- compares Secret fields - the game logs a warning per row per refresh in
--- combat. Confirmed in game with the hook alone installed.
+-- The callbacks are ours and each is a call that is clean from addon code: a
+-- lock is a field the refresh path never reads, a hide ends in Hide(), a reset
+-- takes no arguments, settings touches nothing of the meter's. The segment is
+-- deliberately not here - switching it is a Refresh from our stack.
 --
--- Why once per frame is enough: SetupEntry registers clicks only when a frame
--- is acquired, and Blizzard never sets OnMouseDown on an
--- entry, so what we attach stays attached. The element data is read at event
--- time through the accessor the scroll box puts on every acquired frame, so a
--- handler is never holding a stale row.
+-- What this file no longer tries: a right-click on the bars that opens that
+-- menu. Blizzard's dropdowns open in OnMouseDown (MenuTemplates.xml:46,77),
+-- and the one thing a secure action button can synthesise is a click, which
+-- runs OnClick and does nothing there. Opening the menu from our own code
+-- builds it under our taint, and a type chosen from it would poison the
+-- window the same way our own menu did.
 ns.Entries = {}
 local Entries = ns.Entries
 
--- Keyed by frame, weakly. A field on Blizzard's frame would be a write from
--- tainted code into a table their render pass reads.
-local attached = setmetatable({}, { __mode = "k" })
-
-local function ElementDataOf(window, frame)
-    if frame.GetElementData then
-        return frame:GetElementData()
-    end
-
-    if frame == window:GetLocalPlayerEntry() and window.localPlayerIndex then
-        return window:GetScrollBox():FindElementData(window.localPlayerIndex)
-    end
-
-    return nil
-end
-
-local function OnMouseDown(window, frame, mouseButtonName)
-    if mouseButtonName ~= "RightButton" or not ns.db.menu then
+local function AddWindowActions()
+    if not Menu or not Menu.ModifyMenu then
         return
     end
 
-    if ElementDataOf(window, frame) then
-        ns.ContextMenu.Open(frame, window)
-    end
-end
-
-local function Attach(window, frame)
-    -- Every sweep, not once: SetupEntry re-registers both buttons whenever
-    -- the scroll box re-acquires the frame, and this is the cheapest way to
-    -- win that race within one interval.
-    frame:RegisterForClicks("LeftButtonDown")
-
-    if attached[frame] then
-        return
-    end
-
-    attached[frame] = true
-
-    frame:HookScript("OnMouseDown", function(_, mouseButtonName) OnMouseDown(window, frame, mouseButtonName) end)
-end
-
-function Entries.Sweep()
-    if not ns.db.menu then
-        return
-    end
-
-    ns.Windows.ForEach(function(window)
-        if not window:IsShown() then
+    Menu.ModifyMenu("MENU_DAMAGE_METER_WINDOW_TRACKED_TYPE", function(dropdown, rootDescription)
+        local window = dropdown and dropdown:GetParent()
+        if not window or not window.GetDamageMeterOwner then
             return
         end
 
-        window:GetScrollBox():ForEachFrame(function(frame)
-            Attach(window, frame)
+        local owner = window:GetDamageMeterOwner()
+
+        rootDescription:CreateDivider()
+
+        if owner:CanMoveOrResizeSessionWindow(window) then
+            local locked = window:IsLocked()
+            rootDescription:CreateButton(locked and DAMAGE_METER_UNLOCK_WINDOW or DAMAGE_METER_LOCK_WINDOW, function()
+                owner:SetSessionWindowLocked(window, not locked)
+            end)
+        end
+
+        if owner:CanHideSessionWindow(window) then
+            rootDescription:CreateButton(DAMAGE_METER_HIDE_WINDOW, function()
+                owner:HideSessionWindow(window)
+            end)
+        end
+
+        rootDescription:CreateButton(DAMAGE_METER_RESET_ALL_SESSIONS, function()
+            C_DamageMeter.ResetAllCombatSessions()
         end)
 
-        local localPlayerEntry = window:GetLocalPlayerEntry()
-        if localPlayerEntry then
-            Attach(window, localPlayerEntry)
-        end
+        rootDescription:CreateButton("DamageMeterCompanion settings", function()
+            ns.Config.Open()
+        end)
     end)
 end
 
 function Entries.Enable()
-    ns.OnSweep(Entries.Sweep)
+    AddWindowActions()
 end
 
 ns.RegisterModule("Entries", Entries)

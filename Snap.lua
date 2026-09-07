@@ -202,7 +202,10 @@ end
 -- The guard keeps the re-entrant OnSizeChanged events our own SetWidth and
 -- SetHeight calls dispatch from starting a second walk on top of this one.
 function Snap.PushSize(index)
-    if applyingSize then
+    -- Out of combat only. SetWidth on a session window makes its ScrollBox
+    -- re-run its initializers inside our execution, and in combat those
+    -- compare Secret fields. A resize in combat is a rare gesture anyway.
+    if applyingSize or InCombatLockdown() then
         return
     end
 
@@ -317,16 +320,10 @@ function Snap.ClearLink(index)
     window:SetSize(width, height)
     window:SetUserPlaced(true)
 
-    -- Detaching is the one way a window of ours lands on an absolute point
-    -- without a drag, so the position has to be recorded here as well.
-    if ns.Windows then
-        ns.Windows.StorePosition(index, left, bottom)
-    end
 end
 
--- Moves a window by a fixed offset and records the result the same way a
--- drop would: ClearLink has already handed the window its own point, and the
--- Windows module's own drag hook runs after this one and stores what it sees.
+-- Moves a window by a fixed offset. ClearLink has already handed the window
+-- its own point; the frame position cache records where it ends up.
 function Snap.Nudge(window, index, dx, dy)
     local left, bottom = window:GetRect()
 
@@ -338,9 +335,6 @@ function Snap.Nudge(window, index, dx, dy)
     window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left + dx, bottom + dy)
     window:SetUserPlaced(true)
 
-    if ns.Windows then
-        ns.Windows.StorePosition(index, left + dx, bottom + dy)
-    end
 end
 
 local function CollectCandidates(exceptIndex)
@@ -452,10 +446,6 @@ function Snap.Enable()
     end
 
     Windows.ForEach(AttachWindow)
-
-    -- Our own windows are built after this walk, and SetupSessionWindow never
-    -- fires for them, so they get the same hooks through the creation callback.
-    Windows.OnCreated(AttachWindow)
 
     -- Windows created later, through Show new window, need the same size and
     -- drag hooks. DamageMeter already exists, so this one must be an instance

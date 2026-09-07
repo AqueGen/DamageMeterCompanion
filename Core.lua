@@ -1,7 +1,6 @@
 local addonName, ns = ...
 
 ns.defaults = {
-    menu = true,
     format = true,
     snap = true,
     snapThreshold = 50,
@@ -9,12 +8,8 @@ ns.defaults = {
     strata = "MEDIUM",
 }
 
--- windows is keyed by index and holds only our own indices: damageMeterType,
--- sessionType, sessionID, shown, locked, nonInteractive, minimized, width,
--- height, left, bottom, barHeight, textSize. Blizzard keeps its own for 1 to 3.
 ns.charDefaults = {
     links = {},
-    windows = {},
 }
 
 local modules = {}
@@ -43,10 +38,9 @@ function ns.IsAvailable()
         and DamageMeterEntryMixin ~= nil
 end
 
--- Rows that carry a death recap render a timestamp rather than a number, and
--- clicking one opens the death recap UI instead of the breakdown. The
--- formatting path has to leave them alone. deathRecapID is
--- documented NeverSecret, so reading it in combat is safe.
+-- Rows that carry a death recap render a timestamp rather than a number, so
+-- the formatting has to leave them alone. deathRecapID is documented
+-- NeverSecret, so reading it in combat is safe.
 function ns.HasDeathRecap(source)
     return type(source.deathRecapID) == "number" and source.deathRecapID ~= 0
 end
@@ -221,54 +215,21 @@ function ns.Probe()
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
 end
 
--- Reports, per window, whether our per-window hooks actually landed on it.
--- Written because the right-click menu and the number formatting both worked
--- on window 1 and on nothing else, and both are installed per frame - so the
--- question is which frames we reached, not what the handlers do.
+-- One line per window: what the addon can see about it, for bug reports.
 function ns.Diagnose()
-    ns.Print(("snap %s, threshold %d, menu %s, format %s"):format(
-        tostring(ns.db.snap), ns.db.snapThreshold,
-        tostring(ns.db.menu), tostring(ns.db.format)))
+    ns.Print(("snap %s, threshold %d, format %s"):format(
+        tostring(ns.db.snap), ns.db.snapThreshold, tostring(ns.db.format)))
 
-    local indices = ns.Windows.Indices()
-    ns.Print("registry sees " .. #indices .. " window(s)")
-
-    for _, index in ipairs(indices) do
+    for _, index in ipairs(ns.Windows.Indices()) do
         local window = ns.Windows.Get(index)
-        local hookCount = 0
-
-        for _ in pairs(window.dmtHooks or {}) do
-            hookCount = hookCount + 1
-        end
-
-        local entries, hookedEntries = 0, 0
-        window:GetScrollBox():ForEachFrame(function(entry)
-            entries = entries + 1
-            if entry.dmtHooks then
-                hookedEntries = hookedEntries + 1
-            end
-        end)
-
-        local link = ns.charDb.links[index]
         local left, bottom, width, height = window:GetRect()
-
-        -- The anchor is what settles the snapping report: a link that is present
-        -- but whose frame is not actually anchored to its target means ApplyLink
-        -- ran and something re-anchored afterwards, which is a different bug from
-        -- a link that was never written.
         local _, relativeTo = window:GetPoint(1)
+        local link = ns.charDb.links[index]
 
-        ns.Print(("window %d: %s, shown %s, noninteractive %s, our hooks %d, drag hooked %s, entries %d, entry hooks %d"):format(
+        ns.Print(("window %d: shown %s, locked %s, rect %s,%s %sx%s, anchored to %s, link %s"):format(
             index,
-            ns.Windows.IsOurs(index) and "ours" or "blizzard",
             tostring(window:IsShown()),
-            tostring(window:IsNonInteractive()),
-            hookCount,
-            tostring(window.dmtSizeHooked == true),
-            entries,
-            hookedEntries))
-
-        ns.Print(("  rect %s,%s %sx%s, anchored to %s, link %s"):format(
+            tostring(window:IsLocked()),
             tostring(left and math.floor(left)), tostring(bottom and math.floor(bottom)),
             tostring(width and math.floor(width)), tostring(height and math.floor(height)),
             relativeTo and (relativeTo:GetName() or "unnamed") or "none",
@@ -283,25 +244,24 @@ local function HandleSlashCommand(input)
         ns.Probe()
     elseif command == "diag" then
         ns.Diagnose()
-    elseif command == "snap" or command == "menu" or command == "format" then
+    elseif command == "snap" or command == "format" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: diag, probe, menu, format, snap")
+        ns.Print("commands: diag, probe, format, snap")
     end
 end
 
 BINDING_NAME_DAMAGEMETERCOMPANION_TOGGLE = "Show or hide the damage meter"
-BINDING_NAME_DAMAGEMETERCOMPANION_WINDOW2 = "Toggle meter window 2"
-BINDING_NAME_DAMAGEMETERCOMPANION_WINDOW3 = "Toggle meter window 3"
-BINDING_NAME_DAMAGEMETERCOMPANION_TOGGLEALL = "Show or hide all extra windows"
+BINDING_NAME_DAMAGEMETERCOMPANION_HIDEALL = "Hide all extra windows"
 BINDING_NAME_DAMAGEMETERCOMPANION_RESET = "Reset damage meter data"
 
 -- The primary window cannot be hidden (CanHideSessionWindow is false for it),
 -- so the only way to put the whole meter away is the CVar the settings
--- checkbox uses.
+-- checkbox uses. The CVar callback runs from Blizzard's registry, not from our
+-- stack, which is what keeps this clean.
 function DamageMeterCompanion_ToggleMeter()
     local enabled = C_CVar.GetCVarBool("damageMeterEnabled")
 
@@ -317,48 +277,16 @@ function DamageMeterCompanion_ToggleMeter()
     end
 end
 
-function DamageMeterCompanion_ToggleWindow(index)
-    if not ns.IsAvailable() or index == 1 then
-        return
-    end
-
-    ns.Windows.SetShown(index, not ns.Windows.IsIndexShown(index))
-end
-
--- Hides every extra window that is showing and remembers which; the next
--- press brings exactly that set back. With nothing to remember it shows every
--- window that exists, which is the only sensible reading of "show all" on a
--- fresh session.
-local putAway
-
-function DamageMeterCompanion_ToggleAll()
+-- Hide only, never show: showing a window from addon code runs Blizzard's
+-- setup inside our taint and poisons that window until /reload. Bringing one
+-- back is the meter's own gear menu, Show new window - untainted.
+function DamageMeterCompanion_HideAll()
     if not ns.IsAvailable() then
         return
     end
 
-    local shown = {}
-
-    for _, index in ipairs(ns.Windows.SecondaryIndices()) do
-        if ns.Windows.IsIndexShown(index) then
-            table.insert(shown, index)
-        end
-    end
-
-    if #shown > 0 then
-        putAway = shown
-
-        for _, index in ipairs(shown) do
-            ns.Windows.SetShown(index, false)
-        end
-
-        return
-    end
-
-    local bringBack = putAway or ns.Windows.SecondaryIndices()
-    putAway = nil
-
-    for _, index in ipairs(bringBack) do
-        ns.Windows.SetShown(index, true)
+    for _, index in ipairs(ns.Windows.Indices()) do
+        ns.Windows.Hide(index)
     end
 end
 
