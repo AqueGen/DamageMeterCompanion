@@ -217,6 +217,33 @@ local function CreateSizeBox(row, index, dimension)
     return box
 end
 
+StaticPopupDialogs["DAMAGEMETERCOMPANION_RELOAD"] = {
+    text = "Window %d is shown. Until the UI is reloaded it carries the addon's taint and will log a warning per row in combat. Reload now?",
+    button1 = RELOADUI,
+    button2 = CANCEL,
+    OnAccept = function() ReloadUI() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+local function ToggleShown(index)
+    if ns.Windows.IsIndexShown(index) then
+        ns.Windows.Hide(index)
+        return
+    end
+
+    if InCombatLockdown() then
+        ns.Print("a window cannot be shown in combat")
+        return
+    end
+
+    if ns.Windows.Show(index) then
+        StaticPopup_Show("DAMAGEMETERCOMPANION_RELOAD", index)
+    end
+end
+
 -- Windows.Indices only lists a Blizzard window once it has been shown; the
 -- panel lists all three slots so a hidden one still has a row saying how to
 -- bring it back. RefreshRow already handles a nil window.
@@ -237,8 +264,22 @@ local function CreateRow(parent, index)
     row.Title = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
     row.Title:SetPoint("TOPLEFT")
 
+    row.Shown = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.Shown:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -2)
+    row.Shown:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+        GameTooltip:SetText("Show or hide this window")
+        GameTooltip:AddLine("Hiding is clean. Showing from here runs Blizzard's setup inside the addon's taint, so the window logs a warning per row in combat until the UI is reloaded - you will be offered a reload. The gear menu's Show new window needs no reload.", 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    row.Shown:SetScript("OnLeave", GameTooltip_Hide)
+    row.Shown:SetScript("OnClick", function()
+        ToggleShown(index)
+        RefreshWindowPanel()
+    end)
+
     row.Size = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.Size:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -8)
+    row.Size:SetPoint("LEFT", row.Shown, "RIGHT", 6, 0)
     row.Size:SetWidth(70)
     row.Size:SetJustifyH("LEFT")
 
@@ -266,7 +307,7 @@ local function CreateRow(parent, index)
     row.Note:SetPoint("LEFT", row.Lock.Text, "RIGHT", 16, 0)
 
     row.Link = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.Link:SetPoint("TOPLEFT", row.Size, "BOTTOMLEFT", 0, -10)
+    row.Link:SetPoint("TOPLEFT", row.Shown, "BOTTOMLEFT", 0, -4)
 
     row.GapLabel = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
     row.GapLabel:SetPoint("LEFT", row.Link, "RIGHT", 12, 0)
@@ -359,6 +400,8 @@ local function RefreshRow(row, index)
     local shown = window ~= nil and window:IsShown()
 
     row.Title:SetText(isPrimary and "Window 1 (primary)" or ("Window " .. index))
+    row.Shown:SetChecked(shown)
+    row.Shown:SetEnabled(not isPrimary)
 
     if shown then
         row.Size:SetText(("%d x %d"):format(window:GetWidth(), window:GetHeight()))
@@ -395,7 +438,7 @@ local function RefreshRow(row, index)
     if isPrimary then
         row.Note:SetText("Size comes from Edit Mode.")
     elseif not shown then
-        row.Note:SetText("Show it from the meter's gear menu, Show new window.")
+        row.Note:SetText("Ticking Shown reloads the UI afterwards - see the tooltip.")
     else
         row.Note:SetText("")
     end

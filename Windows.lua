@@ -64,15 +64,50 @@ function Windows.IsIndexShown(index)
 end
 
 -- Hiding is clean: HideSessionWindow ends in Hide(), and the OnHide it runs
--- only clears fields. Showing is not - SetupSessionWindow would run two full
--- refreshes inside our taint - so there is no Windows.Show. A hidden window
--- comes back through the meter's own gear menu, Show new window.
+-- only clears fields. Showing is not - see Windows.Show.
 function Windows.Hide(index)
     local window = Windows.Get(index)
 
     if window and index ~= 1 and window:IsShown() and DamageMeter:CanHideSessionWindow(window) then
         DamageMeter:HideSessionWindow(window)
     end
+end
+
+-- Showing from addon code is the one thing here that is not clean, and it is
+-- offered anyway because the panel is where the player expects to switch a
+-- window on. SetupSessionWindow runs Blizzard's whole setup - two refreshes -
+-- inside our taint, and that window then logs a Secret-comparison warning per
+-- row in every fight until the UI is reloaded. A reload clears it entirely:
+-- Blizzard restores the window itself at login, untainted, because its saved
+-- data says shown. So the caller prompts for one.
+--
+-- Addressed by index, not through ShowNewSecondarySessionWindow: that picks
+-- the first free slot, so on a character that has never opened a second
+-- window "show 3" would open 2.
+function Windows.Show(index)
+    if index == 1 or Windows.IsIndexShown(index) or InCombatLockdown() then
+        return false
+    end
+
+    if not DamageMeter:CanShowNewSecondarySessionWindow() then
+        return false
+    end
+
+    local window = DamageMeter:GetSessionWindow(index)
+    local windowData = DamageMeter:GetWindowDataList()[index]
+
+    if windowData then
+        DamageMeter:SetupSessionWindow(index, windowData)
+
+        -- SetupSessionWindow alone does not record that the window is showing;
+        -- the function Blizzard uses for that is file-local. Re-setting the
+        -- lock to the value it already has is a no-op that runs the same save.
+        DamageMeter:SetSessionWindowLocked(window or DamageMeter:GetSessionWindow(index), windowData.locked or false)
+    else
+        DamageMeter:CreateWindowData(index)
+    end
+
+    return true
 end
 
 -- Window 1's size is an Edit Mode setting, written by Blizzard's own resize

@@ -59,7 +59,7 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 ## 6. Settings panel
 
 - [ ] The behaviour page has readable numbers, snapping, snap distance, idle transparency, layer, and at the bottom a Blizzard section with Enable Damage Meter and Auto Reset that mirror Gameplay Enhancements both ways.
-- [ ] The Windows page lists three rows. A hidden slot says how to bring it back. Window 1's size boxes route through Edit Mode; a size Edit Mode refuses prints a message.
+- [ ] The Windows page lists three rows. Ticking Shown on a hidden slot shows the window and offers a reload; after the reload the window is there and combat logs nothing. Window 1's size boxes route through Edit Mode; a size Edit Mode refuses prints a message.
 - [ ] Typing an out-of-range width comes back clamped. A locked window's boxes are greyed.
 - [ ] Lock per row, Lock all and Unlock all agree with the gear menu's lock state.
 - [ ] Hide on a row hides the window; the row stays.
