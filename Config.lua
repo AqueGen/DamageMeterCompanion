@@ -4,7 +4,6 @@ ns.Config = {}
 local Config = ns.Config
 
 local category
-local categoryLayout
 
 local function AddCheckbox(variableKey, name, tooltip, onChange)
     local setting = Settings.RegisterProxySetting(category, "DMT_" .. variableKey,
@@ -42,40 +41,6 @@ local function AddSlider(variableKey, name, tooltip, minimum, maximum, step, lab
     end or nil)
 
     Settings.CreateSlider(category, setting, options, tooltip)
-end
-
--- One checkbox per damage meter type, so the strip holds what this player
--- actually switches between rather than a fixed set someone else chose. The
--- settings are proxied onto one table keyed by type, which is what
--- QuickButtons reads.
-local function BuildQuickButtonOptions()
-    -- The section header comes from Blizzard_Settings_Shared, which is loaded on
-    -- demand: without it the list still reads fine, so it is not worth a
-    -- dependency on an addon that may not be up yet.
-    if categoryLayout and CreateSettingsListSectionHeaderInitializer then
-        categoryLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Quick buttons"))
-    end
-
-    local parent = AddCheckbox("quickButtons", "Show quick buttons",
-        "A row of one-click type buttons above each meter window.",
-        function() ns.QuickButtons.RebuildAll() end)
-
-    for _, damageMeterType in ipairs(ns.QuickButtons.Order()) do
-        local name = ns.ContextMenu.GetTypeName(damageMeterType)
-
-        local setting = Settings.RegisterProxySetting(category, "DMT_quickType" .. damageMeterType,
-            Settings.VarType.Boolean, ("%s (%s)"):format(name, ns.QuickButtons.ShortName(damageMeterType)), false,
-            function() return ns.QuickButtons.IsSelected(damageMeterType) end,
-            function(value) ns.QuickButtons.SetSelected(damageMeterType, value) end)
-
-        local checkbox = Settings.CreateCheckbox(category, setting, "Put " .. name .. " on the quick button row.")
-
-        -- Greying the whole list when the feature is off keeps the page honest
-        -- about which of its controls currently do anything.
-        if parent and checkbox.SetParentInitializer then
-            checkbox:SetParentInitializer(parent, function() return ns.db.quickButtons end)
-        end
-    end
 end
 
 local function BuildBehaviourOptions()
@@ -137,8 +102,6 @@ local function BuildBehaviourOptions()
         end
         return container:GetData()
     end, "Which layer the meter draws on. Raise it if another addon covers it.")
-
-    BuildQuickButtonOptions()
 end
 
 function Config.Open()
@@ -146,7 +109,7 @@ function Config.Open()
 end
 
 function Config.Enable()
-    category, categoryLayout = Settings.RegisterVerticalLayoutCategory("DamageMeterTweaks")
+    category = Settings.RegisterVerticalLayoutCategory("DamageMeterTweaks")
     BuildBehaviourOptions()
     Settings.RegisterAddOnCategory(category)
 

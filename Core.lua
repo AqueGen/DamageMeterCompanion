@@ -7,7 +7,6 @@ ns.defaults = {
     format = true,
     snap = true,
     snapThreshold = 50,
-    quickButtons = true,
     idleAlpha = 0.4,
     strata = "MEDIUM",
 }

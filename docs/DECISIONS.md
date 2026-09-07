@@ -22,13 +22,13 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 **Match width and match height live only in the settings panel.** They were in the right-click menu too, and having one control in two places was the thing the panel section below argues against - the menu is for what you change often, the panel for the state you set once. The menu keeps type, segment and window actions.
 
-**Quick buttons sit above the window, not inside it.** The header is Blizzard's and the body is bars, so any strip inside costs a row of data. Above also keeps the strip out of the window's own rect, which is what snapping measures - a strip inside the rect would have made two snapped windows meet with a band of buttons between them. The set of types is the player's to choose because nobody switches between all eleven, and the four that are on by default are the four the type menu needed two clicks to reach.
-
 **The settings panel does not offer type, segment, or an attach control.** The right-click menu changes type and segment in fewer clicks than opening a settings page, and attaching is a drag gesture. A second way to do one thing is worse than one good way. What the panel is for is the state the menu cannot show at a glance: which windows exist, how big they are, what is attached to what.
 
 **The panel does offer numeric size entry**, because that was the point of asking for it. Values are clamped to the window's resize bounds and the panel shows the clamped result rather than silently ignoring the request.
 
 **Window locks are honoured when dragging and when resizing, but not when re-applying an anchor.** Refusing to re-apply an anchor a window already has would silently detach a locked window on every reload, which is worse than honouring the lock too literally.
+
+**Quick type buttons were built and removed.** A strip of one-click type buttons above each window, with a configurable set - Details has them and the type menu does cost two clicks. Built, shipped, and rejected on sight: it looked bad. The window has no room for a strip that is not either eating a bar row or floating above the frame looking bolted on, and a feature whose whole value is convenience does not survive being ugly. Rebuilding it means solving the appearance first, not the behaviour.
 
 **These were considered and left out of scope**, each because Blizzard already covers it or because it is analysis rather than control: per-window scale, auto-switch to current segment, reset window position, skins and colours, display bookmarks, report-to-chat, scroll bindings, and the update interval.
 

@@ -116,22 +116,7 @@ Everything in this section is new and none of it has ever run.
 - [ ] Snapping two windows and reopening the page shows the link and the match flags.
 - [ ] Detach drops the link and the window then moves freely.
 
-## 10. Quick buttons
-
-New and never run.
-
-- [ ] A row of buttons sits above each meter window, one per ticked type, filling the window's width.
-- [ ] Clicking one switches that window's type, and the header dropdown agrees.
-- [ ] The button for the current type is highlighted, and the highlight follows a type change made from the header dropdown or the right-click menu.
-- [ ] Hovering a button shows the full type name.
-- [ ] Ticking and unticking types in Settings adds and removes buttons on every window immediately, without a reload.
-- [ ] Unticking every type leaves no strip rather than an empty bar.
-- [ ] Turning Show quick buttons off greys the type list and removes every strip.
-- [ ] Resizing a window keeps the buttons filling its width with no gap or overhang at the right edge.
-- [ ] A window set to uninteractable has no strip.
-- [ ] Snapping still works: the strip sits above the window and must not stop two windows meeting flush.
-
-## 11. Panel lock and Remove
+## 10. Panel lock and Remove
 
 - [ ] The Windows page has a lock box per row. Ticking it locks that window: it cannot be dragged, and its size boxes grey out.
 - [ ] Window 1's lock box is disabled.
