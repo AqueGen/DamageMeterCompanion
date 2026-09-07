@@ -42,6 +42,10 @@ end
 local ourWindows = {}
 
 function Windows.Get(index)
+    if type(index) ~= "number" then
+        return nil
+    end
+
     if Windows.IsOurs(index) then
         return ourWindows[index]
     end
@@ -137,6 +141,18 @@ local function Store(index, key, value)
     saved[index][key] = value
 end
 
+-- ClearLink is the second way one of our windows gets an absolute position,
+-- and the only one that is not a drag, so it has to record it too or the
+-- window returns to the cascade default next login.
+function Windows.StorePosition(index, left, bottom)
+    if not Windows.IsOurs(index) then
+        return
+    end
+
+    Store(index, "left", left)
+    Store(index, "bottom", bottom)
+end
+
 -- A session window calls its owner for sixteen things and never checks what the
 -- owner is (DamageMeterSessionWindow.lua:792). Giving ours this table instead
 -- of DamageMeter keeps every call away from SetSavedWindowData, which asserts
@@ -206,6 +222,15 @@ function proxy:GetSessionID()
 end
 
 local function BuildWindow(index)
+    -- The template is virtual XML, so it is not a Lua global and can only be
+    -- asked about by name. This is also where a patch that renamed it would
+    -- otherwise hard-error inside CreateFrame, during PLAYER_LOGIN, taking
+    -- every other module's Enable down with it.
+    if not C_XMLUtil.GetTemplateInfo("DamageMeterSessionWindowTemplate") then
+        ns.Print("cannot create a window: the damage meter window template is missing")
+        return nil
+    end
+
     local saved = GetSaved()[index] or {}
 
     local window = CreateFrame("FRAME", "DamageMeterTweaksWindow" .. index, DamageMeter, "DamageMeterSessionWindowTemplate")
@@ -282,12 +307,6 @@ local function BuildWindow(index)
 end
 
 function Windows.Create()
-    if not DamageMeterSessionWindowTemplate then
-        -- The template is XML, so this is how a patch that renamed it surfaces.
-        ns.Print("cannot create a window: the damage meter window template is missing")
-        return nil
-    end
-
     -- Blizzard's owner reuses a hidden slot rather than allocating; without the
     -- same behaviour a hidden window is unreachable and its index is consumed
     -- for the rest of the character's life.
@@ -297,14 +316,16 @@ function Windows.Create()
         -- Same guard as the Enable loop: a hand-edited entry at one of
         -- Blizzard's indices must never be built as one of ours.
         if Windows.IsOurs(index) and saved.shown == false then
-            saved.shown = true
-
             local window = ourWindows[index]
             if window then
                 window:Show()
-            else
-                BuildWindow(index)
+            elseif not BuildWindow(index) then
+                -- The template is gone; leave the slot hidden rather than
+                -- claim a window the player cannot see.
+                return nil
             end
+
+            saved.shown = true
 
             return index
         end
@@ -320,12 +341,17 @@ function Windows.Create()
 
     local index = Windows.NextFreeIndex(taken)
 
+    -- No saved entry until the frame actually exists, or a failed build would
+    -- leave a window in the list that nothing can ever create.
+    if not BuildWindow(index) then
+        return nil
+    end
+
     Store(index, "shown", true)
-    BuildWindow(index)
 
     if #Windows.Indices() > Windows.SOFT_CAP and not Windows.warnedAboutCount then
         Windows.warnedAboutCount = true
-        ns.Print("that is a lot of windows - each one is a scroll box refreshed on every combat event, so watch your frame rate")
+        ns.Print("that is a lot of windows - each one is a scroll box refreshed on every combat event, and the settings page does not scroll, so rows past the sixth or so will be off the page")
     end
 
     return index

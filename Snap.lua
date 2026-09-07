@@ -287,6 +287,12 @@ function Snap.ClearLink(index)
     window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
     window:SetSize(width, height)
     window:SetUserPlaced(true)
+
+    -- Detaching is the one way a window of ours lands on an absolute point
+    -- without a drag, so the position has to be recorded here as well.
+    if ns.Windows then
+        ns.Windows.StorePosition(index, left, bottom)
+    end
 end
 
 local function CollectCandidates(exceptIndex)
@@ -424,8 +430,9 @@ function Snap.Enable()
     -- fires for them, so they get the same hooks through the creation callback.
     Windows.OnCreated(AttachWindow)
 
-    -- Windows created later, through Show new window, need the same size hook.
-    -- DamageMeter already exists, so this one must be an instance hook.
+    -- Windows created later, through Show new window, need the same size and
+    -- drag hooks. DamageMeter already exists, so this one must be an instance
+    -- hook.
     --
     -- SetupSessionWindow also re-anchors the window to UIParent at a fixed
     -- offset every time it runs, including when it is reusing a frame that was

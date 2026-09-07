@@ -201,7 +201,10 @@ local function CreateOverrideBox(row, index, key)
                 saved[key] = nil
             end
 
-            ns.Windows.ApplyAppearance(ns.Windows.Get(index), index)
+            local window = ns.Windows.Get(index)
+            if window then
+                ns.Windows.ApplyAppearance(window, index)
+            end
         end
 
         self:ClearFocus()
@@ -386,6 +389,14 @@ local function CreateRow(parent, index)
     return row
 end
 
+-- The four pairs Snap.FindSnap produces, named the way the player sees them.
+local SIDE_NAMES = {
+    ["TOPLEFT|BOTTOMLEFT"] = "below",
+    ["BOTTOMLEFT|TOPLEFT"] = "above",
+    ["TOPLEFT|TOPRIGHT"] = "right of",
+    ["TOPRIGHT|TOPLEFT"] = "left of",
+}
+
 local function RefreshRow(row, index)
     local window = ns.Windows.Get(index)
     local isPrimary = index == 1
@@ -434,7 +445,12 @@ local function RefreshRow(row, index)
         row.Note:SetText("")
     end
 
-    row.Link:SetText(link and ("attached to window " .. link.to) or "not attached")
+    if link then
+        local side = SIDE_NAMES[tostring(link.point) .. "|" .. tostring(link.relPoint)]
+        row.Link:SetText(("attached %s window %s"):format(side or "to", link.to))
+    else
+        row.Link:SetText("not attached")
+    end
     row.Gap:SetEnabled(link ~= nil and not isPrimary)
 
     if not row.Gap:HasFocus() then
