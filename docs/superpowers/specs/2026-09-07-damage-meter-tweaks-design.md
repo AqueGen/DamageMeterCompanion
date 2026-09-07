@@ -255,6 +255,6 @@ The frame-bound parts - hover timing, menu appearance, actual anchoring, number 
 
 ## Open items for the implementation plan
 
-- Whether hover should suppress itself while the source window is sticky on a different source, or retarget it. Proposed: retarget, because that matches Details.
+- ~~Whether hover should suppress itself while the source window is sticky on a different source, or retarget it.~~ **Settled during Task 3: hover never touches a pinned window.** Retargeting looked right because Details does it, but Details hovers into a tooltip and pins into a separate window, so it has two surfaces. We have one, and retargeting it would destroy the pin the user just made - including when the click lands inside the hover delay and the timer fires afterwards.
 - Snap indicator while dragging (a highlight on the edge about to be snapped to) is desirable but not required for v1.
 - Whether the decimal separator should follow the client locale rather than always being a dot. Proposed: always a dot, because Blizzard's own `AbbreviateLargeNumbers` output and Details both use one.

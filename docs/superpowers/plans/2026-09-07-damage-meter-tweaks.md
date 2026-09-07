@@ -619,7 +619,12 @@ local function OnInitEntry(sessionWindow, frame, elementData)
             pendingTimer = C_Timer.NewTimer(ns.db.hoverDelay, function()
                 pendingTimer = nil
 
-                if frame:IsMouseOver() and frame:IsVisible() then
+                -- A sticky window was pinned by a click, and this one window
+                -- serves both roles. Re-showing it would silently un-pin it,
+                -- including when the click landed inside the hover delay.
+                if frame:IsMouseOver()
+                    and frame:IsVisible()
+                    and not sessionWindow:GetSourceWindow():IsSticky() then
                     local sticky = false
                     sessionWindow:ShowSourceWindow(elementData, sticky)
                 end
@@ -671,7 +676,7 @@ The body of `OnInitEntry` above is indented one level deeper than it needs to be
 1. Hovering a bar opens the spell breakdown after a short delay.
 2. Moving the cursor off the bar closes it.
 3. Moving the cursor from the bar into the breakdown keeps it open.
-4. Left-clicking a bar still opens it and it stays open after the cursor leaves (Blizzard's own click path is untouched in this task).
+4. Left-clicking a bar opens it, and it closes again when the cursor leaves. That is expected here and only here: this task leaves Blizzard's own `OnClick` in place, which opens the breakdown unpinned, and an unpinned breakdown is exactly what hover cleans up after. Task 4 replaces that handler so a left click pins. Shift-clicking a bar pins it in this task, and a pinned breakdown survives both the cursor leaving and any later hover.
 5. Hovering a row in the Deaths display does not open the death recap; clicking it still does.
 6. `/dmt hover` turns the behaviour off and clicking still works.
 
@@ -932,6 +937,10 @@ Pure functions only. No frames, no WoW API. Task 6 wires them to the game.
 ```lua
 local ns = {}
 
+-- Snap.lua registers itself at file scope; the real one lives in Core.lua,
+-- which these tests do not load.
+ns.RegisterModule = function() end
+
 assert(loadfile("Snap.lua"))("DamageMeterTweaks", ns)
 
 local Snap = ns.Snap
@@ -1014,6 +1023,24 @@ describe("Snap.FindSnap", function()
 
         assert.is_nil(Snap.FindSnap(dragged, { dragged }, 15))
     end)
+
+    it("keeps the first candidate when two are equidistant", function()
+        local dragged = Rect(3, 100, 296, 400, 200)
+        local first = Rect(1, 100, 500, 400, 200)
+        local second = Rect(2, 100, 500, 400, 200)
+
+        assert.are.equal(1, Snap.FindSnap(dragged, { first, second }, 15).index)
+    end)
+
+    it("rejects a window that only touches at a corner", function()
+        -- Sits exactly below and to the right: its top equals the target's
+        -- bottom and its left equals the target's right, so neither axis
+        -- overlaps and neither near edge may snap.
+        local dragged = Rect(2, 500, 300, 400, 200)
+        local target = Rect(1, 100, 500, 400, 200)
+
+        assert.is_nil(Snap.FindSnap(dragged, { target }, 15))
+    end)
 end)
 
 describe("Snap.WouldCycle", function()
@@ -1035,6 +1062,15 @@ describe("Snap.WouldCycle", function()
 
     it("refuses a self link", function()
         assert.is_true(Snap.WouldCycle({}, 2, 2))
+    end)
+
+    it("refuses a link into a chain that already loops, without hanging", function()
+        -- A corrupt saved link set can hold a cycle that does not pass through
+        -- the window being linked. Without a visited set this call never
+        -- returns, and Lua has no preemption, so it would freeze the client.
+        local links = { [1] = { to = 2 }, [2] = { to = 1 } }
+
+        assert.is_true(Snap.WouldCycle(links, 3, 1))
     end)
 end)
 
@@ -1068,6 +1104,10 @@ describe("Snap.Clamp", function()
 
     it("leaves a value inside the range alone", function()
         assert.are.equal(400, Snap.Clamp(400, 200, 600))
+    end)
+
+    it("returns the minimum when the bounds are inverted", function()
+        assert.are.equal(600, Snap.Clamp(400, 600, 200))
     end)
 end)
 ```
@@ -1151,14 +1191,22 @@ function Snap.FindSnap(rect, candidates, threshold)
     return best
 end
 
--- Walks the chain from the prospective target back up. Depth is at most three.
+-- Walks the chain from the prospective target back up. Depth is at most three
+-- in a healthy link set, but a corrupt saved set can hold a cycle that does not
+-- pass through `from`, so the walk records what it has seen. A repeat means the
+-- structure is already broken: refuse the link rather than extend it, and above
+-- all return rather than spin - Lua has no preemption here, so a spin freezes
+-- the whole client.
 function Snap.WouldCycle(links, from, to)
     local current = to
+    local seen = {}
 
     while current do
-        if current == from then
+        if current == from or seen[current] then
             return true
         end
+
+        seen[current] = true
 
         local link = links[current]
         current = link and link.to or nil
@@ -1236,26 +1284,34 @@ end
 
 local applyingSize = false
 
--- Pushes this window's size onto every window linked to it that asked to match
--- an axis. The guard stops a mutual match from bouncing; a chain settles in one
--- pass because each SetWidth that actually changes the size fires OnSizeChanged
--- again from the child.
-function Snap.PushSize(index)
-    if applyingSize then
+-- Walks the links pointing at `index` and pushes this window's size onto each
+-- one that asked to match an axis, then continues down that window's own
+-- dependents.
+--
+-- The propagation is explicit rather than event-driven on purpose. Setting a
+-- frame's size dispatches OnSizeChanged re-entrantly - Blizzard's own ScrollBox
+-- nulls its handler during updates for exactly that reason - so the nested
+-- event a SetWidth fires is swallowed by the guard below. Relying on it would
+-- resize the first window in a chain and silently leave the rest behind.
+--
+-- A locked window is skipped: the lock means the user asked for that window to
+-- stay put, and resizing it from a neighbour would break that promise.
+local function PushSizeFrom(index, visited)
+    if visited[index] then
         return
     end
+
+    visited[index] = true
 
     local source = DamageMeter:GetSessionWindow(index)
     if not source then
         return
     end
 
-    applyingSize = true
-
     for otherIndex, link in pairs(GetLinks()) do
         if link.to == index then
             local target = DamageMeter:GetSessionWindow(otherIndex)
-            if target and DamageMeter:CanMoveOrResizeSessionWindow(target) then
+            if target and target:CanMoveOrResize() then
                 if link.matchWidth then
                     target:SetWidth(Snap.Clamp(source:GetWidth(), Snap.MIN_WIDTH, Snap.MAX_WIDTH))
                 end
@@ -1263,10 +1319,22 @@ function Snap.PushSize(index)
                 if link.matchHeight then
                     target:SetHeight(Snap.Clamp(source:GetHeight(), Snap.MIN_HEIGHT, Snap.MAX_HEIGHT))
                 end
+
+                PushSizeFrom(otherIndex, visited)
             end
         end
     end
+end
 
+-- The guard keeps the re-entrant OnSizeChanged events our own SetWidth and
+-- SetHeight calls dispatch from starting a second walk on top of this one.
+function Snap.PushSize(index)
+    if applyingSize then
+        return
+    end
+
+    applyingSize = true
+    PushSizeFrom(index, {})
     applyingSize = false
 end
 
@@ -1279,6 +1347,10 @@ function Snap.ApplyLink(index)
         return
     end
 
+    -- Deliberately the owner-level check, not the window's own CanMoveOrResize:
+    -- restoring an anchor the window already has is not moving it against the
+    -- user's wishes, so a locked window keeps its link across a reload instead
+    -- of silently detaching.
     if not DamageMeter:CanMoveOrResizeSessionWindow(window) then
         return
     end
@@ -1286,7 +1358,8 @@ function Snap.ApplyLink(index)
     window:ClearAllPoints()
     window:SetPoint(link.point, target, link.relPoint, 0, 0)
 
-    -- Blizzard's saved frame position cache would otherwise fight the anchor.
+    -- Keeps our anchored position out of Blizzard's frame position cache, so
+    -- next login does not re-impose it as an absolute point.
     window:SetUserPlaced(false)
 
     Snap.PushSize(link.to)
@@ -1298,13 +1371,50 @@ function Snap.ApplyAll()
     end
 end
 
+-- Every validation lives here rather than at the call site, because the
+-- settings panel in Task 9 sets links too. A link to the primary window, a
+-- self-link, or one that closes a cycle is refused: the first cannot be
+-- applied, the second is a frame anchored to itself, and the third would be
+-- persisted past the check that exists to prevent it.
 function Snap.SetLink(index, link)
+    local window = DamageMeter:GetSessionWindow(index)
+
+    if not window
+        or not DamageMeter:CanMoveOrResizeSessionWindow(window)
+        or link.to == index
+        or Snap.WouldCycle(GetLinks(), index, link.to) then
+        return false
+    end
+
     GetLinks()[index] = link
     Snap.ApplyLink(index)
+
+    return true
 end
 
+-- Dropping a link has to hand the window back its own position. It is still
+-- anchored to its old target and still flagged not-user-placed, so without
+-- this it would keep following that window until the next reload and then come
+-- back at Blizzard's default offset with nothing to move it.
 function Snap.ClearLink(index)
+    local window = DamageMeter:GetSessionWindow(index)
+
+    if not GetLinks()[index] then
+        return
+    end
+
     GetLinks()[index] = nil
+
+    if not window or not DamageMeter:CanMoveOrResizeSessionWindow(window) then
+        return
+    end
+
+    local left, bottom, width, height = window:GetRect()
+
+    window:ClearAllPoints()
+    window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
+    window:SetSize(width, height)
+    window:SetUserPlaced(true)
 end
 
 local function CollectCandidates(exceptIndex)
@@ -1319,53 +1429,73 @@ local function CollectCandidates(exceptIndex)
     return candidates
 end
 
+local MATCH_WIDTH_TEXT = "Match width"
+local MATCH_HEIGHT_TEXT = "Match height"
+
+-- The callbacks look the link up on every call rather than capturing it. A
+-- drag while the menu is open replaces the link table, and a captured
+-- reference would then be writing to a table nothing reads.
 function Snap.AddMenuEntries(rootDescription, sessionWindow)
     local index = sessionWindow:GetSessionWindowIndex()
-    local link = GetLinks()[index]
 
-    if not link then
+    if not GetLinks()[index] then
         return
+    end
+
+    local function Toggle(field)
+        local link = GetLinks()[index]
+        if link then
+            link[field] = not link[field]
+            Snap.PushSize(link.to)
+        end
+
+        -- Keeps the menu open so both axes can be flipped in one visit.
+        return MenuResponse.Refresh
     end
 
     rootDescription:CreateDivider()
 
-    rootDescription:CreateCheckbox(DAMAGE_METER_TWEAKS_MATCH_WIDTH,
-        function() return link.matchWidth end,
+    rootDescription:CreateCheckbox(MATCH_WIDTH_TEXT,
         function()
-            link.matchWidth = not link.matchWidth
-            Snap.PushSize(link.to)
-        end)
+            local link = GetLinks()[index]
+            return link and link.matchWidth
+        end,
+        function() return Toggle("matchWidth") end)
 
-    rootDescription:CreateCheckbox(DAMAGE_METER_TWEAKS_MATCH_HEIGHT,
-        function() return link.matchHeight end,
+    rootDescription:CreateCheckbox(MATCH_HEIGHT_TEXT,
         function()
-            link.matchHeight = not link.matchHeight
-            Snap.PushSize(link.to)
-        end)
+            local link = GetLinks()[index]
+            return link and link.matchHeight
+        end,
+        function() return Toggle("matchHeight") end)
 end
 
 function Snap.Enable()
-    DAMAGE_METER_TWEAKS_MATCH_WIDTH = "Match width"
-    DAMAGE_METER_TWEAKS_MATCH_HEIGHT = "Match height"
-
     local function OnDragStop(window)
-        if not ns.db.snap then
+        -- Blizzard's OnDragStart refuses to move a locked window but their
+        -- OnDragStop runs regardless, so the lock has to be checked here or a
+        -- stray drag on a locked window would link it.
+        if not window:CanMoveOrResize() then
             return
         end
 
         local index = window:GetSessionWindowIndex()
-        if not DamageMeter:CanMoveOrResizeSessionWindow(window) then
-            return
-        end
 
-        local result = Snap.FindSnap(RectOf(window, index), CollectCandidates(index), ns.db.snapThreshold)
+        -- Dropping the old link happens even with snapping switched off,
+        -- otherwise turning the feature off would freeze existing links in
+        -- place with no way left to break them.
+        local result = ns.db.snap
+            and Snap.FindSnap(RectOf(window, index), CollectCandidates(index), ns.db.snapThreshold)
+            or nil
 
-        if not result or Snap.WouldCycle(GetLinks(), index, result.index) then
+        if not result then
             Snap.ClearLink(index)
             return
         end
 
-        Snap.SetLink(index, {
+        -- SetLink refuses a link it cannot apply; clear the old one so the
+        -- window is not left following a target the user dragged away from.
+        local linked = Snap.SetLink(index, {
             to = result.index,
             point = result.point,
             relPoint = result.relPoint,
@@ -1374,6 +1504,10 @@ function Snap.Enable()
             matchWidth = result.axis == "vertical",
             matchHeight = result.axis == "horizontal",
         })
+
+        if not linked then
+            Snap.ClearLink(index)
+        end
     end
 
     -- Mixin hook for windows created later, instance hooks for the ones that
@@ -1404,6 +1538,12 @@ Add inside `Snap.Enable()`, after the existing `ForEachSessionWindow` block:
 ```lua
     -- Windows created later, through Show new window, need the same size hook.
     -- DamageMeter already exists, so this one must be an instance hook.
+    --
+    -- SetupSessionWindow also re-anchors the window to UIParent at a fixed
+    -- offset every time it runs, including when it is reusing a frame that was
+    -- hidden earlier. So hiding and re-showing a snapped window detaches it
+    -- unless the links are re-applied here, and a link whose target was hidden
+    -- at login gets its retry the moment that target comes back.
     ns.HookInstance(DamageMeter, "SetupSessionWindow", function(_, windowDataIndex, windowData)
         local window = windowData.sessionWindow
         if window and not window.dmtSizeHooked then
@@ -1412,6 +1552,8 @@ Add inside `Snap.Enable()`, after the existing `ForEachSessionWindow` block:
                 Snap.PushSize(windowDataIndex)
             end)
         end
+
+        Snap.ApplyAll()
     end)
 ```
 
@@ -1469,6 +1611,10 @@ git commit -m "feat: magnetic window snapping with size matching"
 
 ```lua
 local ns = {}
+
+-- Presence.lua registers itself at file scope; the real one lives in Core.lua,
+-- which these tests do not load.
+ns.RegisterModule = function() end
 
 assert(loadfile("Presence.lua"))("DamageMeterTweaks", ns)
 
