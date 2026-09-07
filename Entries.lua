@@ -43,6 +43,21 @@ local function ElementDataOf(window, frame)
     return nil
 end
 
+local function SessionIsReadable(window)
+    local sessionType = window:GetSessionType()
+    local ok, session
+
+    if sessionType then
+        ok, session = pcall(C_DamageMeter.GetCombatSessionFromType, sessionType, window:GetDamageMeterType())
+    elseif window:GetSessionID() then
+        ok, session = pcall(C_DamageMeter.GetCombatSessionFromID, window:GetSessionID(), window:GetDamageMeterType())
+    end
+
+    local first = ok and session and session.combatSources and session.combatSources[1]
+
+    return first ~= nil and not issecretvalue(first.name)
+end
+
 local function OnEnter(window, frame)
     if not ns.db.hover then
         return
@@ -60,6 +75,15 @@ local function OnEnter(window, frame)
     -- restrictions are on and stays Secret in the data Blizzard fetched then,
     -- until Blizzard's own next fetch out of combat. Hover simply waits.
     if issecretvalue(elementData.sourceGUID) or issecretvalue(elementData.sourceCreatureID) then
+        return
+    end
+
+    -- Not in combat, and not while the server still treats the session as
+    -- one: the breakdown's spell IDs stay Secret past PLAYER_REGEN_ENABLED,
+    -- and their icon lookup compares them. A fresh fetch says which it is -
+    -- the source name is ConditionalSecret, which is why Details reads it as
+    -- its own in-combat signal.
+    if InCombatLockdown() or not SessionIsReadable(window) then
         return
     end
 
