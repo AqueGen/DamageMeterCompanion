@@ -4,6 +4,7 @@ ns.Config = {}
 local Config = ns.Config
 
 local category
+local categoryLayout
 
 local function AddCheckbox(variableKey, name, tooltip, onChange)
     local setting = Settings.RegisterProxySetting(category, "DMT_" .. variableKey,
@@ -48,8 +49,12 @@ end
 -- settings are proxied onto one table keyed by type, which is what
 -- QuickButtons reads.
 local function BuildQuickButtonOptions()
-    Settings.GetCategoryLayout(category):AddInitializer(
-        CreateSettingsListSectionHeaderInitializer("Quick buttons"))
+    -- The section header comes from Blizzard_Settings_Shared, which is loaded on
+    -- demand: without it the list still reads fine, so it is not worth a
+    -- dependency on an addon that may not be up yet.
+    if categoryLayout and CreateSettingsListSectionHeaderInitializer then
+        categoryLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer("Quick buttons"))
+    end
 
     local parent = AddCheckbox("quickButtons", "Show quick buttons",
         "A row of one-click type buttons above each meter window.",
@@ -67,7 +72,9 @@ local function BuildQuickButtonOptions()
 
         -- Greying the whole list when the feature is off keeps the page honest
         -- about which of its controls currently do anything.
-        checkbox:SetParentInitializer(parent, function() return ns.db.quickButtons end)
+        if parent and checkbox.SetParentInitializer then
+            checkbox:SetParentInitializer(parent, function() return ns.db.quickButtons end)
+        end
     end
 end
 
@@ -139,7 +146,7 @@ function Config.Open()
 end
 
 function Config.Enable()
-    category = Settings.RegisterVerticalLayoutCategory("DamageMeterTweaks")
+    category, categoryLayout = Settings.RegisterVerticalLayoutCategory("DamageMeterTweaks")
     BuildBehaviourOptions()
     Settings.RegisterAddOnCategory(category)
 
