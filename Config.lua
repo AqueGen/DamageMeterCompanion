@@ -164,13 +164,17 @@ end
 -- shows that as a percentage, so the box speaks percent and converts - which
 -- also keeps a whole-number box useful, since 1 would otherwise be the only
 -- reachable value below double size.
-local OVERRIDE_DISPLAY_UNIT = {
-    barHeight = 1,
-    textSize = 100,
+-- The bounds are Edit Mode's own, from EditModeSettingDisplayInfo.lua. Below
+-- the minimum means "follow Edit Mode again", because a zero bar height is a
+-- legal number, a broken window, and something that would persist and be
+-- re-applied on every login.
+local OVERRIDE_RANGES = {
+    barHeight = { minimum = 15, maximum = 40, unit = 1 },
+    textSize = { minimum = 50, maximum = 150, unit = 100 },
 }
 
 local function CreateOverrideBox(row, index, key)
-    local unit = OVERRIDE_DISPLAY_UNIT[key]
+    local range = OVERRIDE_RANGES[key]
     local box = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
     box:SetAutoFocus(false)
     box:SetNumeric(true)
@@ -188,8 +192,15 @@ local function CreateOverrideBox(row, index, key)
         if saved then
             local value = tonumber(self:GetText())
 
-            -- An empty box means follow Edit Mode again.
-            saved[key] = value and (value / unit) or nil
+            -- An empty box, or one below the range, means follow Edit Mode
+            -- again. Anything else is clamped, and the refresh below shows the
+            -- clamped value - the same contract the size boxes already keep.
+            if value and value >= range.minimum then
+                saved[key] = ns.Snap.Clamp(value, range.minimum, range.maximum) / range.unit
+            else
+                saved[key] = nil
+            end
+
             ns.Windows.ApplyAppearance(ns.Windows.Get(index), index)
         end
 
@@ -217,7 +228,7 @@ local function RefreshOverrideBox(box, index, key)
 
     local value = enabled and saved[key]
 
-    box:SetText(value and math.floor(value * OVERRIDE_DISPLAY_UNIT[key] + 0.5) or "")
+    box:SetText(value and math.floor(value * OVERRIDE_RANGES[key].unit + 0.5) or "")
 end
 
 -- Blizzard's own toggle only knows about its three windows: calling it for one
@@ -236,6 +247,24 @@ local function ToggleShown(index)
         saved.shown = not window:IsShown()
         window:SetShown(saved.shown)
     end
+end
+
+-- Windows.Indices only lists a Blizzard window once it has been shown, but the
+-- panel is where the player switches windows 2 and 3 on in the first place, so
+-- their rows have to be there whether or not the frame exists yet. RefreshRow
+-- already handles a nil window.
+local function PanelIndices()
+    local present = {}
+
+    for index = 1, ns.Windows.BLIZZARD_WINDOW_COUNT do
+        present[index] = true
+    end
+
+    for _, index in ipairs(ns.Windows.Indices()) do
+        present[index] = true
+    end
+
+    return ns.Windows.SortedIndices(present)
 end
 
 local function CreateRow(parent, index)
@@ -383,19 +412,15 @@ local function RefreshRow(row, index)
     row.Height:SetShown(true)
     row.Height:SetEnabled(resizable)
 
-    if shown then
-        -- Never overwrite a box the user is typing in; the throttled
-        -- refresh below runs while the page is open.
-        if not row.Width:HasFocus() then
-            row.Width:SetText(math.floor(window:GetWidth() + 0.5))
-        end
+    -- Never overwrite a box the user is typing in; the throttled refresh below
+    -- runs while the page is open, and hiding the window from this same row is
+    -- enough to take the shown branch out from under a half-typed number.
+    if not row.Width:HasFocus() then
+        row.Width:SetText(shown and math.floor(window:GetWidth() + 0.5) or "")
+    end
 
-        if not row.Height:HasFocus() then
-            row.Height:SetText(math.floor(window:GetHeight() + 0.5))
-        end
-    else
-        row.Width:SetText("")
-        row.Height:SetText("")
+    if not row.Height:HasFocus() then
+        row.Height:SetText(shown and math.floor(window:GetHeight() + 0.5) or "")
     end
 
     RefreshOverrideBox(row.BarHeight, index, "barHeight")
@@ -410,7 +435,7 @@ local function RefreshRow(row, index)
     end
 
     row.Link:SetText(link and ("attached to window " .. link.to) or "not attached")
-    row.Gap:SetEnabled(link ~= nil)
+    row.Gap:SetEnabled(link ~= nil and not isPrimary)
 
     if not row.Gap:HasFocus() then
         row.Gap:SetText(link and (link.gap or 0) or "")
@@ -433,7 +458,7 @@ function RefreshWindowPanel()
 
     local present = {}
 
-    for position, index in ipairs(ns.Windows.Indices()) do
+    for position, index in ipairs(PanelIndices()) do
         present[index] = true
         RefreshRow(windowPanel:AcquireRow(index, position), index)
     end

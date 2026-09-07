@@ -336,6 +336,20 @@ function Windows.Remove(index)
         return
     end
 
+    -- The links come first, and the order is load bearing: ClearLink puts the
+    -- dependent back on an absolute point read from its own GetRect, and a
+    -- window still anchored to a frame we had already unparented has no rect to
+    -- read - it would be left floating on a dead anchor, the exact state
+    -- ClearLink exists to prevent.
+    ns.charDb.links[index] = nil
+
+    -- A link pointing at a window that no longer exists would anchor nothing.
+    for otherIndex, link in pairs(ns.charDb.links) do
+        if link.to == index then
+            ns.Snap.ClearLink(otherIndex)
+        end
+    end
+
     local window = ourWindows[index]
 
     if window then
@@ -345,15 +359,6 @@ function Windows.Remove(index)
     end
 
     GetSaved()[index] = nil
-
-    -- A link pointing at a window that no longer exists would anchor nothing.
-    for otherIndex, link in pairs(ns.charDb.links) do
-        if link.to == index then
-            ns.Snap.ClearLink(otherIndex)
-        end
-    end
-
-    ns.charDb.links[index] = nil
 end
 
 function Windows.Enable()
