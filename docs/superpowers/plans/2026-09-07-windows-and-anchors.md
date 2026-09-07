@@ -379,10 +379,12 @@ Append to the existing `describe("Snap.ApplyOrder", ...)` block in `tests/snap_s
     end)
 
     it("orders two independent chains without dropping either", function()
+        -- Only windows that have a link appear in the order; 4 and 6 are
+        -- targets, not dependents.
         local links = { [5] = { to = 4 }, [7] = { to = 6 } }
         local order = Snap.ApplyOrder(links)
 
-        assert.are.equal(4, #order)
+        assert.are.same({ 5, 7 }, order)
     end)
 ```
 
@@ -426,15 +428,15 @@ git commit -m "feat: window registry replacing the hardcoded three"
 ### Task 3: The proxy owner and extra windows
 
 **Files:**
-- Modify: `Windows.lua`
-- Modify: `Core.lua`
+- Modify: `Windows.lua`, `Core.lua`, `Snap.lua`, `Hover.lua`, `ContextMenu.lua`, `Presence.lua`
 - Modify: `tests/windows_spec.lua`
 
 **Interfaces:**
-- Consumes: `ns.charDb`, `ns.Print`, `Windows.NextFreeIndex`, `Windows.Get`.
+- Consumes: `ns.charDb`, `ns.Print`, `ns.HookInstance`, `Windows.NextFreeIndex`, `Windows.Get`.
 - Produces:
   - `ns.Windows.Create() -> index or nil`
   - `ns.Windows.Remove(index)`
+  - `ns.Windows.OnCreated(callback)` — `callback(window, index)` runs for every window built after registration
   - `ns.Windows.ApplyAppearance(window, index)`
   - `ns.Windows.ResolveAppearance(mirrored, override) -> value` — pure
   - `ns.Windows.proxyOwner` — the table given to our windows as their damage meter owner
@@ -483,6 +485,17 @@ Add to `Windows.lua`, above `ns.RegisterModule`:
 ```lua
 local function GetSaved()
     return ns.charDb.windows
+end
+
+local creationCallbacks = {}
+
+-- A module that installs per-window hooks registers here, and gets called for
+-- every window we build afterwards. Registering is idempotent from the
+-- module's side: HookInstance is keyed by handler and HookScript chains, so a
+-- window that was also covered by an enable-time walk is not hooked twice in
+-- any way that matters.
+function Windows.OnCreated(callback)
+    table.insert(creationCallbacks, callback)
 end
 
 function Windows.ResolveAppearance(mirrored, override)
@@ -625,6 +638,15 @@ local function BuildWindow(index)
 
     Windows.ApplyAppearance(window, index)
 
+    -- Every module installs its per-window hooks once, when it is enabled.
+    -- Blizzard's windows created later are covered because those modules also
+    -- hook SetupSessionWindow, which never fires for ours - so without this a
+    -- window added from the panel would have no drag hook, no hover, no
+    -- right-click menu and no idle transparency.
+    for _, callback in ipairs(creationCallbacks) do
+        callback(window, index)
+    end
+
     if saved.locked then
         window:SetLocked(true)
     end
@@ -741,20 +763,61 @@ end
 
 `CreateFrame`, `Enum` and `DamageMeter` are all inside functions, so the headless load is unaffected. `Windows.warnedAboutCount` is a plain field on the module table, set once per session.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [ ] **Step 6: Register the four modules that install per-window hooks**
+
+Without this, a window added from the panel is inert: it draws bars and nothing else responds to it. Each module registers the same work it already does in its enable-time walk.
+
+In `Snap.Enable`, after the existing `ns.Windows.ForEach` block that installs the drag and size hooks, extract that block's body into a local and register it:
+
+```lua
+    local function AttachWindow(window, index)
+        window:HookScript("OnDragStop", OnDragStop)
+
+        window.dmtSizeHooked = true
+        window:HookScript("OnSizeChanged", function()
+            Snap.PushSize(index)
+        end)
+    end
+
+    ns.Windows.ForEach(AttachWindow)
+    ns.Windows.OnCreated(AttachWindow)
+```
+
+In `Hover.Enable`, after the existing walk:
+
+```lua
+    ns.Windows.OnCreated(function(window)
+        ns.HookInstance(window, "InitEntry", OnInitEntry)
+    end)
+```
+
+In `ContextMenu.Enable`, the same shape with its own `OnInitEntry`.
+
+In `Presence.Enable`, after its existing walk:
+
+```lua
+    ns.Windows.OnCreated(function(window)
+        ns.HookInstance(window, "SetOnUpdateReason", OnSetOnUpdateReason)
+        Presence.ApplyAlpha(window)
+    end)
+```
+
+`Format` needs nothing: it hooks the entry mixin table, and a new window's entry frames are created after that hook, so they inherit it.
+
+- [ ] **Step 7: Run the tests to verify they pass**
 
 Same command. Expected: 60 successes / 0 failures.
 
-- [ ] **Step 7: Syntax-check**
+- [ ] **Step 8: Syntax-check**
 
 ```bash
-MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/g/Games/World of Warcraft/_retail_/Interface/AddOns/DamageMeterTweaks" && ~/luaenv/bin/luac -p Windows.lua Core.lua'
+MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/g/Games/World of Warcraft/_retail_/Interface/AddOns/DamageMeterTweaks" && ~/luaenv/bin/luac -p Windows.lua Core.lua Snap.lua Hover.lua ContextMenu.lua Presence.lua'
 ```
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add Windows.lua Core.lua tests/windows_spec.lua
+git add Windows.lua Core.lua Snap.lua Hover.lua ContextMenu.lua Presence.lua tests/windows_spec.lua
 git commit -m "feat: extra meter windows through a proxy owner"
 ```
 
