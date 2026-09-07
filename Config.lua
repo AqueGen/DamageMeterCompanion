@@ -56,20 +56,17 @@ local function BuildBehaviourOptions()
     AddCheckbox("format", "Readable numbers",
         "Show 56.72M instead of 56716 K. Only applies once the values stop being secret, which is after combat.",
         function()
-            -- Our text is written from a post-hook on UpdateValue, so nothing
-            -- already on screen changes until something re-renders it. Out of
-            -- combat that could be minutes, which would read as a dead toggle.
-            -- In combat there is nothing to repaint - the values are secret and
-            -- the formatting does not apply - and Refresh compares them, so
-            -- calling it from our tainted stack would be all risk and no gain.
-            if UnitAffectingCombat("player") then
-                return
+            -- The sweep repaints on its own within a fifth of a second, so
+            -- switching on needs nothing here. Switching off does: our text
+            -- would otherwise sit on the bars until Blizzard next re-rendered
+            -- them, which out of combat could be minutes.
+            --
+            -- Deliberately not Refresh: it runs BuildDataProvider, which
+            -- compares Secret values, and calling it from our stack is the very
+            -- thing that made the meter log taint warnings.
+            if not ns.db.format then
+                ns.Format.RequestRestore()
             end
-
-            ns.Windows.ForEach(function(window)
-                window:Refresh(ScrollBoxConstants.RetainScrollPosition)
-                window:GetSourceWindow():Refresh(ScrollBoxConstants.RetainScrollPosition)
-            end)
         end)
 
     AddCheckbox("snap", "Snap windows together",
@@ -104,7 +101,16 @@ local function BuildBehaviourOptions()
     end, "Which layer the meter draws on. Raise it if another addon covers it.")
 end
 
+-- Settings.OpenToCategory reaches the protected OpenSettingsPanel, which an
+-- addon may not call in combat. Blizzard's own entry in the same dropdown works
+-- because their code is not tainted; ours is blocked and would otherwise fail
+-- silently apart from a line in the error log.
 function Config.Open()
+    if InCombatLockdown() then
+        ns.Print("the settings panel cannot be opened in combat")
+        return
+    end
+
     Settings.OpenToCategory(category:GetID())
 end
 

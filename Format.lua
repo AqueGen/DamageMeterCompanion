@@ -3,6 +3,11 @@ local addonName, ns = ...
 ns.Format = {}
 local Format = ns.Format
 
+-- How often the visible bars are repainted. The sweep only runs out of combat,
+-- so this is not a combat cost; it is what replaces the hook that used to do
+-- the same work at exactly the right moment.
+Format.INTERVAL = 0.2
+
 local UNITS = {
     { threshold = 1e9, suffix = "B" },
     { threshold = 1e6, suffix = "M" },
@@ -78,13 +83,7 @@ function Format.Compose(main, parenthetical, percentage)
     return mainText
 end
 
--- Runs after Blizzard has already set its own text, so bailing out simply
--- leaves the original string in place.
-local function OnUpdateValue(entry)
-    if not ns.db.format then
-        return
-    end
-
+local function Repaint(entry)
     if ns.HasDeathRecap(entry) then
         return
     end
@@ -96,14 +95,75 @@ local function OnUpdateValue(entry)
     entry:GetValue():SetText(Format.Compose(Format.SelectValues(entry)))
 end
 
-function Format.Enable()
-    -- Entry frames are pooled and mostly created later, which the mixin hook
-    -- covers. Any that the meter already built before we loaded carry a copy
-    -- of the original method and need hooking individually.
-    hooksecurefunc(DamageMeterEntryMixin, "UpdateValue", OnUpdateValue)
+-- Puts Blizzard's own string back. Their UpdateValue is the only thing that
+-- knows how to build it, and calling it out of combat is safe because nothing
+-- it reads is Secret then. Only ever called from the sweep, so it never runs
+-- inside Blizzard's own execution.
+local function Restore(entry)
+    if type(entry.UpdateValue) == "function" then
+        entry:UpdateValue()
+    end
+end
+
+local restorePending = false
+
+-- Turning the feature off has to hand the bars back, and a single pass does it:
+-- there is nothing to keep repainting afterwards.
+function Format.RequestRestore()
+    restorePending = true
+end
+
+function Format.Sweep()
+    local apply = ns.db.format and Repaint or (restorePending and Restore or nil)
+
+    if not apply then
+        return
+    end
+
+    restorePending = false
+
     ns.ForEachEntryFrame(function(entry)
-        ns.HookInstance(entry, "UpdateValue", OnUpdateValue)
+        -- One bad row must not stop the rest of the list being painted, and a
+        -- patch that renames a field would otherwise turn a cosmetic feature
+        -- into an error every fifth of a second.
+        pcall(apply, entry)
     end)
+end
+
+-- Deliberately not a hook.
+--
+-- Every earlier version hooked DamageMeterEntryMixin:UpdateValue, which put our
+-- taint on Blizzard's own execution: their entry setup then compares Secret
+-- fields - sourceDisplayType among them - and the game logs
+-- "attempt to compare field ... while execution tainted by ...". That is true
+-- of any hooksecurefunc on a function Blizzard calls while it renders the list,
+-- whatever the hook body does.
+--
+-- Painting from our own timer instead means our code is never on their stack.
+-- It costs up to one interval of Blizzard's formatting after a change, and it
+-- runs only out of combat - which loses nothing, because in combat the values
+-- are Secret and the formatting never applied anyway.
+function Format.Enable()
+    local elapsed = 0
+
+    local driver = CreateFrame("Frame")
+    driver:SetScript("OnUpdate", function(_, delta)
+        elapsed = elapsed + delta
+
+        if elapsed < Format.INTERVAL then
+            return
+        end
+
+        elapsed = 0
+
+        if InCombatLockdown() then
+            return
+        end
+
+        Format.Sweep()
+    end)
+
+    Format.driver = driver
 end
 
 ns.RegisterModule("Format", Format)
