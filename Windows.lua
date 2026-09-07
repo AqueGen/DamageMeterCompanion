@@ -294,7 +294,9 @@ function Windows.Create()
     for _, index in ipairs(Windows.SortedIndices(GetSaved())) do
         local saved = GetSaved()[index]
 
-        if saved.shown == false then
+        -- Same guard as the Enable loop: a hand-edited entry at one of
+        -- Blizzard's indices must never be built as one of ours.
+        if Windows.IsOurs(index) and saved.shown == false then
             saved.shown = true
 
             local window = ourWindows[index]

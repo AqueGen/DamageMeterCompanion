@@ -117,6 +117,18 @@ local function InitializeSavedVariables()
     ApplyDefaults(DamageMeterTweaksDB, ns.defaults)
     ApplyDefaults(DamageMeterTweaksCharDB, ns.charDefaults)
 
+    -- The snap distance default moved from 15 to 50 after the first version
+    -- shipped. ApplyDefaults only fills nils, so a profile that already carries
+    -- the old default would never see the new one. Move it once, and only when
+    -- it is still exactly the old default - a value the player chose is theirs.
+    if not DamageMeterTweaksDB.snapThresholdDefaultMoved then
+        DamageMeterTweaksDB.snapThresholdDefaultMoved = true
+
+        if DamageMeterTweaksDB.snapThreshold == 15 then
+            DamageMeterTweaksDB.snapThreshold = ns.defaults.snapThreshold
+        end
+    end
+
     ns.db = DamageMeterTweaksDB
     ns.charDb = DamageMeterTweaksCharDB
 end
