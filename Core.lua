@@ -187,15 +187,28 @@ function ns.Diagnose()
         end)
 
         local link = ns.charDb.links[index]
+        local left, bottom, width, height = window:GetRect()
 
-        ns.Print(("window %d: %s, shown %s, noninteractive %s, our hooks %d, entries %d, entry hooks %d, link %s"):format(
+        -- The anchor is what settles the snapping report: a link that is present
+        -- but whose frame is not actually anchored to its target means ApplyLink
+        -- ran and something re-anchored afterwards, which is a different bug from
+        -- a link that was never written.
+        local _, relativeTo = window:GetPoint(1)
+
+        ns.Print(("window %d: %s, shown %s, noninteractive %s, our hooks %d, drag hooked %s, entries %d, entry hooks %d"):format(
             index,
             ns.Windows.IsOurs(index) and "ours" or "blizzard",
             tostring(window:IsShown()),
             tostring(window:IsNonInteractive()),
             hookCount,
+            tostring(window.dmtSizeHooked == true),
             entries,
-            hookedEntries,
+            hookedEntries))
+
+        ns.Print(("  rect %s,%s %sx%s, anchored to %s, link %s"):format(
+            tostring(left and math.floor(left)), tostring(bottom and math.floor(bottom)),
+            tostring(width and math.floor(width)), tostring(height and math.floor(height)),
+            relativeTo and (relativeTo:GetName() or "unnamed") or "none",
             link and ("to " .. tostring(link.to)) or "none"))
     end
 end

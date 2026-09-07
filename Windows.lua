@@ -362,8 +362,30 @@ function Windows.Create()
     return index
 end
 
+-- Removing one of Blizzard's three cannot destroy anything - the slot is part
+-- of its window data list for the life of the character - so it means the only
+-- thing removal can mean there: put the window away through Blizzard's own
+-- owner, which records it as hidden. The row stays in the panel as an empty
+-- slot, which is the truth about what Blizzard offers.
 function Windows.Remove(index)
+    if index == 1 then
+        return
+    end
+
     if not Windows.IsOurs(index) then
+        for otherIndex, link in pairs(ns.charDb.links) do
+            if link.to == index then
+                ns.Snap.ClearLink(otherIndex)
+            end
+        end
+
+        ns.Snap.ClearLink(index)
+
+        local window = Windows.Get(index)
+        if window and DamageMeter:CanHideSessionWindow(window) then
+            DamageMeter:HideSessionWindow(window)
+        end
+
         return
     end
 

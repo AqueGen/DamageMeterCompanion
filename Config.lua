@@ -463,8 +463,10 @@ local function RefreshRow(row, index)
     row.MatchHeight:SetEnabled(link ~= nil and not isPrimary)
     row.Detach:SetEnabled(link ~= nil and not isPrimary)
 
-    -- Blizzard's three are its owner's to create and destroy, not ours.
-    row.Remove:SetEnabled(ns.Windows.IsOurs(index))
+    -- Window 1 is the primary and cannot go away. Ours are destroyed; Blizzard's
+    -- 2 and 3 are put away through its own owner, since their slots are part of
+    -- its window data list whatever we do.
+    row.Remove:SetEnabled(not isPrimary and (ns.Windows.IsOurs(index) or shown))
 end
 
 function RefreshWindowPanel()
