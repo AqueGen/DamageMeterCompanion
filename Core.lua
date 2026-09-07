@@ -38,10 +38,9 @@ function ns.IsAvailable()
         and DamageMeterEntryMixin ~= nil
 end
 
--- Rows that carry a death recap render a timestamp rather than a number, and
--- clicking one opens the death recap UI instead of the breakdown. Both the
--- hover path and the formatting path have to leave them alone. deathRecapID is
--- documented NeverSecret, so reading it in combat is safe.
+-- Rows that carry a death recap render a timestamp rather than a number, so
+-- the formatting has to leave them alone. deathRecapID is documented
+-- NeverSecret, so reading it in combat is safe.
 function ns.HasDeathRecap(source)
     return type(source.deathRecapID) == "number" and source.deathRecapID ~= 0
 end
@@ -206,10 +205,7 @@ function ns.Probe()
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
 end
 
--- Reports, per window, whether our per-window hooks actually landed on it.
--- Written because the right-click menu and the number formatting both worked
--- on window 1 and on nothing else, and both are installed per frame - so the
--- question is which frames we reached, not what the handlers do.
+-- One line per window: what the addon can see about it, for bug reports.
 function ns.Diagnose()
     ns.Print(("snap %s, threshold %d, format %s"):format(
         tostring(ns.db.snap), ns.db.snapThreshold, tostring(ns.db.format)))
