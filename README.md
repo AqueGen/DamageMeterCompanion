@@ -12,15 +12,15 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 **Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. The percentage is the one part that needs arithmetic, so it appears only out of combat.
 
-**Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Any window can attach to any other, in a chain as long as you like.
+**Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Any window can attach to any other, in a chain as long as you like. A window dropped near a screen edge lands flush with it.
 
 **More than three windows.** Blizzard stops at three. This addon adds its own beyond that, with their own type, segment, lock, size and position, all saved per character.
 
-**A window page.** `/dmc` lists every window with its exact size in pixels, what is attached to what, the gap between them, a per-window bar height and text size override, and a lock. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
+**A window page.** `/dmc` lists every window with its exact size in pixels, what is attached to what, the gap between them, a per-window bar height and text size override, a lock, and Lock all / Unlock all. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
 
 **Transparency and layer.** The meter dims when the mouse is away and comes back when it is over it, as a fraction of the Edit Mode transparency you already set. The frame layer is a dropdown, for when another addon covers the meter.
 
-**Key bindings** for showing and hiding the meter and for toggling windows 2 and 3.
+**Key bindings** for showing and hiding the meter, toggling windows 2 and 3, hiding and restoring every extra window at once, and resetting the data.
 
 ## Commands
 

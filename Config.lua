@@ -276,22 +276,8 @@ local function RefreshOverrideBox(box, index, key)
     box:SetText(value and math.floor(value * OVERRIDE_RANGES[key].unit + 0.5) or "")
 end
 
--- Blizzard's own toggle only knows about its three windows: calling it for one
--- of ours would reach a DamageMeterMixin method with an index its window data
--- list has no entry for. Ours are shown and hidden through their saved entry.
 local function ToggleShown(index)
-    if not ns.Windows.IsOurs(index) then
-        DamageMeterCompanion_ToggleWindow(index)
-        return
-    end
-
-    local window = ns.Windows.Get(index)
-    local saved = ns.charDb.windows[index]
-
-    if window and saved then
-        saved.shown = not window:IsShown()
-        window:SetShown(saved.shown)
-    end
+    ns.Windows.SetShown(index, not ns.Windows.IsIndexShown(index))
 end
 
 -- Windows.Indices only lists a Blizzard window once it has been shown, but the
@@ -593,6 +579,31 @@ function Config.BuildWindowPanel()
         ns.Windows.Create()
         RefreshWindowPanel()
     end)
+
+    -- Through each window's own owner, never DamageMeter directly, so the
+    -- same button is right for ours above index three. Window 1 is skipped:
+    -- its owner refuses the lock regardless.
+    local function SetAllLocked(locked)
+        ns.Windows.ForEach(function(window, index)
+            if index ~= 1 then
+                window:GetDamageMeterOwner():SetSessionWindowLocked(window, locked)
+            end
+        end)
+
+        RefreshWindowPanel()
+    end
+
+    windowPanel.LockAll = CreateFrame("Button", nil, windowPanel, "UIPanelButtonTemplate")
+    windowPanel.LockAll:SetSize(100, 22)
+    windowPanel.LockAll:SetPoint("LEFT", windowPanel.AddWindow, "RIGHT", 12, 0)
+    windowPanel.LockAll:SetText("Lock all")
+    windowPanel.LockAll:SetScript("OnClick", function() SetAllLocked(true) end)
+
+    windowPanel.UnlockAll = CreateFrame("Button", nil, windowPanel, "UIPanelButtonTemplate")
+    windowPanel.UnlockAll:SetSize(100, 22)
+    windowPanel.UnlockAll:SetPoint("LEFT", windowPanel.LockAll, "RIGHT", 8, 0)
+    windowPanel.UnlockAll:SetText("Unlock all")
+    windowPanel.UnlockAll:SetScript("OnClick", function() SetAllLocked(false) end)
 
     windowPanel:SetScript("OnShow", RefreshWindowPanel)
 

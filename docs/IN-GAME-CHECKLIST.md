@@ -89,6 +89,8 @@ These four came out of the Task 6 review and are the ones most likely to catch s
 - [ ] The toggle hides and shows the whole meter out of combat.
 - [ ] Pressed in combat it either works or prints a message. It never throws.
 - [ ] On a character that has never opened a secondary window, the "window 3" key opens window **3**, not window 2.
+- [ ] The "all extra windows" key hides every open extra window, and pressing it again brings back exactly those.
+- [ ] The reset key clears the meter, same as the gear dropdown's Reset.
 
 ## 8b. Extra windows and chaining
 
@@ -110,6 +112,7 @@ Everything in this section is new and none of it has ever run.
 - [ ] Dragging a window near another shows a green bar on both edges that will meet, and nothing when out of range.
 - [ ] The bars vanish on release, and turning snapping off in the panel stops them appearing at all.
 - [ ] The bars appear on the correct edges for all four directions - below, above, left and right.
+- [ ] Drag a window to within the snap distance of a screen edge with no other window near: the bars show on the window's edge and the screen's, and on release it lands flush.
 - [ ] Set a gap of 6 on a linked window. The pair separates by six pixels and the value survives a reload.
 
 ## 8d. Sizes
@@ -127,6 +130,7 @@ Everything in this section is new and none of it has ever run.
 - [ ] The Windows page lists three rows. Window 1 says its size is controlled by Edit Mode and its Shown box is disabled.
 - [ ] Snapping two windows and reopening the page shows the link and the match flags.
 - [ ] Detach drops the link and the window then moves freely.
+- [ ] Lock all locks every window except window 1; Unlock all releases them. The row checkboxes agree.
 
 ## 10. Panel lock and Remove
 

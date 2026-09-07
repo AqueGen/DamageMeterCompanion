@@ -81,6 +81,37 @@ function Preview.StopTracking()
     Preview.Hide()
 end
 
+-- The screen-edge variant: one bar on the window's edge, one on the screen's,
+-- both spanning the window's own extent - the screen edge is as long as the
+-- screen, and lighting all of it would say nothing about which window moves.
+function Preview.EdgeBarRects(rect, screen, edge, thickness)
+    if edge.edge == "left" or edge.edge == "right" then
+        local height = rect.top - rect.bottom
+        local movingLeft = (edge.edge == "left") and rect.left or (rect.right - thickness)
+        local targetLeft = (edge.edge == "left") and screen.left or (screen.right - thickness)
+
+        return
+            { left = movingLeft, bottom = rect.bottom, width = thickness, height = height },
+            { left = targetLeft, bottom = rect.bottom, width = thickness, height = height }
+    end
+
+    local width = rect.right - rect.left
+    local movingBottom = (edge.edge == "top") and (rect.top - thickness) or rect.bottom
+    local targetBottom = (edge.edge == "top") and (screen.top - thickness) or screen.bottom
+
+    return
+        { left = rect.left, bottom = movingBottom, width = width, height = thickness },
+        { left = rect.left, bottom = targetBottom, width = width, height = thickness }
+end
+
+function Preview.ShowEdge(rect, screen, edge)
+    local frame = GetOverlay()
+    local movingBar, targetBar = Preview.EdgeBarRects(rect, screen, edge, THICKNESS)
+
+    PlaceBar(frame.movingBar, movingBar)
+    PlaceBar(frame.targetBar, targetBar)
+end
+
 -- Two bars, one on each window's edge, spanning only the part of those edges
 -- that actually meet. Answering "this edge, this side" is the whole point -
 -- a trail between the windows' centres, which is how Details shows the same

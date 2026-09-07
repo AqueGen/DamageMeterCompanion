@@ -110,6 +110,35 @@ function Snap.ApplyOrder(links)
     return order
 end
 
+-- The screen is a different kind of neighbour: the window's edge meets the
+-- same edge of the screen rather than the opposite one, and there is nothing
+-- to anchor to that could move, so a screen snap is a nudge into place, not a
+-- link. Returns the shift that lands the nearest edge flush, or nil.
+function Snap.FindScreenSnap(rect, screen, threshold)
+    local edges = {
+        { edge = "left", gap = math.abs(rect.left - screen.left), dx = screen.left - rect.left, dy = 0 },
+        { edge = "right", gap = math.abs(rect.right - screen.right), dx = screen.right - rect.right, dy = 0 },
+        { edge = "top", gap = math.abs(rect.top - screen.top), dx = 0, dy = screen.top - rect.top },
+        { edge = "bottom", gap = math.abs(rect.bottom - screen.bottom), dx = 0, dy = screen.bottom - rect.bottom },
+    }
+
+    local best
+
+    for _, candidate in ipairs(edges) do
+        if candidate.gap <= threshold and (not best or candidate.gap < best.gap) then
+            best = candidate
+        end
+    end
+
+    return best
+end
+
+local function ScreenRect()
+    local left, bottom, width, height = UIParent:GetRect()
+
+    return { left = left, right = left + width, top = bottom + height, bottom = bottom }
+end
+
 local function RectOf(window, index)
     local left, bottom, width, height = window:GetRect()
 
@@ -295,6 +324,25 @@ function Snap.ClearLink(index)
     end
 end
 
+-- Moves a window by a fixed offset and records the result the same way a
+-- drop would: ClearLink has already handed the window its own point, and the
+-- Windows module's own drag hook runs after this one and stores what it sees.
+function Snap.Nudge(window, index, dx, dy)
+    local left, bottom = window:GetRect()
+
+    if not left then
+        return
+    end
+
+    window:ClearAllPoints()
+    window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left + dx, bottom + dy)
+    window:SetUserPlaced(true)
+
+    if ns.Windows then
+        ns.Windows.StorePosition(index, left + dx, bottom + dy)
+    end
+end
+
 local function CollectCandidates(exceptIndex)
     local candidates = {}
 
@@ -323,6 +371,14 @@ function Snap.Enable()
 
             if candidate then
                 ns.Preview.Show(rect, RectOf(ns.Windows.Get(candidate.index), candidate.index), candidate)
+                return
+            end
+
+            local screen = ScreenRect()
+            local edge = Snap.FindScreenSnap(rect, screen, ns.db.snapThreshold)
+
+            if edge then
+                ns.Preview.ShowEdge(rect, screen, edge)
             else
                 ns.Preview.Hide()
             end
@@ -349,6 +405,18 @@ function Snap.Enable()
 
         if not result then
             Snap.ClearLink(index)
+
+            -- A window snaps to the screen only when no window claimed it:
+            -- another window is the more specific neighbour.
+            if ns.db.snap then
+                local rect = RectOf(window, index)
+                local edge = Snap.FindScreenSnap(rect, ScreenRect(), ns.db.snapThreshold)
+
+                if edge then
+                    Snap.Nudge(window, index, edge.dx, edge.dy)
+                end
+            end
+
             return
         end
 

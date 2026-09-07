@@ -8,4 +8,10 @@
     <Binding name="DAMAGEMETERCOMPANION_WINDOW3" category="DamageMeterCompanion">
         DamageMeterCompanion_ToggleWindow(3)
     </Binding>
+    <Binding name="DAMAGEMETERCOMPANION_TOGGLEALL" category="DamageMeterCompanion">
+        DamageMeterCompanion_ToggleAll()
+    </Binding>
+    <Binding name="DAMAGEMETERCOMPANION_RESET" category="DamageMeterCompanion">
+        DamageMeterCompanion_ResetData()
+    </Binding>
 </Bindings>

@@ -83,3 +83,23 @@ describe("Preview.BarRects", function()
         assert.are.equal(200, movingBar.height)
     end)
 end)
+
+describe("Preview.EdgeBarRects", function()
+    local screen = { left = 0, right = 1920, top = 1080, bottom = 0 }
+
+    it("draws vertical bars on the window's and the screen's left edges", function()
+        local moving, target = Preview.EdgeBarRects(Rect(2, 12, 500, 400, 200), screen, { edge = "left" }, 3)
+        assert.are.equal(12, moving.left)
+        assert.are.equal(0, target.left)
+        assert.are.equal(200, moving.height)
+        assert.are.equal(300, target.bottom)
+    end)
+
+    it("draws horizontal bars inside the top edges", function()
+        local moving, target = Preview.EdgeBarRects(Rect(2, 100, 1075, 400, 200), screen, { edge = "top" }, 3)
+        assert.are.equal(1072, moving.bottom)
+        assert.are.equal(1077, target.bottom)
+        assert.are.equal(400, target.width)
+        assert.are.equal(100, target.left)
+    end)
+end)

@@ -259,6 +259,8 @@ end
 BINDING_NAME_DAMAGEMETERCOMPANION_TOGGLE = "Show or hide the damage meter"
 BINDING_NAME_DAMAGEMETERCOMPANION_WINDOW2 = "Toggle meter window 2"
 BINDING_NAME_DAMAGEMETERCOMPANION_WINDOW3 = "Toggle meter window 3"
+BINDING_NAME_DAMAGEMETERCOMPANION_TOGGLEALL = "Show or hide all extra windows"
+BINDING_NAME_DAMAGEMETERCOMPANION_RESET = "Reset damage meter data"
 
 -- The primary window cannot be hidden (CanHideSessionWindow is false for it),
 -- so the only way to put the whole meter away is the CVar the settings
@@ -278,38 +280,55 @@ function DamageMeterCompanion_ToggleMeter()
     end
 end
 
--- Deliberately does not go through ShowNewSecondarySessionWindow: that picks
--- the first free slot, so on a character that has never opened a second window
--- the "window 3" key would open window 2. Addressing the index directly is
--- what the binding's own label promises.
 function DamageMeterCompanion_ToggleWindow(index)
     if not ns.IsAvailable() or index == 1 then
         return
     end
 
-    local window = DamageMeter:GetSessionWindow(index)
+    ns.Windows.SetShown(index, not ns.Windows.IsIndexShown(index))
+end
 
-    if window and window:IsShown() then
-        DamageMeter:HideSessionWindow(window)
+-- Hides every extra window that is showing and remembers which; the next
+-- press brings exactly that set back. With nothing to remember it shows every
+-- window that exists, which is the only sensible reading of "show all" on a
+-- fresh session.
+local putAway
+
+function DamageMeterCompanion_ToggleAll()
+    if not ns.IsAvailable() then
         return
     end
 
-    if not DamageMeter:CanShowNewSecondarySessionWindow() then
+    local shown = {}
+
+    for _, index in ipairs(ns.Windows.SecondaryIndices()) do
+        if ns.Windows.IsIndexShown(index) then
+            table.insert(shown, index)
+        end
+    end
+
+    if #shown > 0 then
+        putAway = shown
+
+        for _, index in ipairs(shown) do
+            ns.Windows.SetShown(index, false)
+        end
+
         return
     end
 
-    local windowData = DamageMeter:GetWindowDataList()[index]
+    local bringBack = putAway or ns.Windows.SecondaryIndices()
+    putAway = nil
 
-    if windowData then
-        DamageMeter:SetupSessionWindow(index, windowData)
+    for _, index in ipairs(bringBack) do
+        ns.Windows.SetShown(index, true)
+    end
+end
 
-        -- SetupSessionWindow alone does not record that the window is showing;
-        -- the function Blizzard uses for that is file-local. Re-setting the
-        -- lock to the value it already has is a no-op that runs the same save.
-        DamageMeter:SetSessionWindowLocked(window or DamageMeter:GetSessionWindow(index), windowData.locked or false)
-    else
-        -- CreateWindowData records the new window itself.
-        DamageMeter:CreateWindowData(index)
+-- Same call the gear dropdown's Reset makes. Nothing Secret is touched.
+function DamageMeterCompanion_ResetData()
+    if ns.IsAvailable() then
+        C_DamageMeter.ResetAllCombatSessions()
     end
 end
 

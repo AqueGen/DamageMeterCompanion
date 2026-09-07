@@ -242,3 +242,31 @@ describe("Snap.OffsetForGap", function()
         assert.are.equal(0, y)
     end)
 end)
+
+describe("Snap.FindScreenSnap", function()
+    local screen = { left = 0, right = 1920, top = 1080, bottom = 0 }
+
+    it("returns the shift that lands the left edge flush", function()
+        local result = Snap.FindScreenSnap(Rect(2, 12, 500, 400, 200), screen, 50)
+        assert.are.equal("left", result.edge)
+        assert.are.equal(-12, result.dx)
+        assert.are.equal(0, result.dy)
+    end)
+
+    it("returns the shift for the bottom edge", function()
+        local result = Snap.FindScreenSnap(Rect(2, 500, 230, 400, 200), screen, 50)
+        assert.are.equal("bottom", result.edge)
+        assert.are.equal(0, result.dx)
+        assert.are.equal(-30, result.dy)
+    end)
+
+    it("picks the nearer edge at a corner", function()
+        local result = Snap.FindScreenSnap(Rect(2, 1510, 1075, 400, 200), screen, 50)
+        assert.are.equal("top", result.edge)
+        assert.are.equal(5, result.dy)
+    end)
+
+    it("returns nothing when every edge is out of range", function()
+        assert.is_nil(Snap.FindScreenSnap(Rect(2, 500, 500, 400, 200), screen, 50))
+    end)
+end)

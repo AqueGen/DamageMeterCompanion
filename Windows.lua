@@ -452,6 +452,89 @@ function Windows.Enable()
     end
 end
 
+-- Blizzard's owner only knows its three windows; ours are shown and hidden
+-- through their saved entry. One call for both, so the panel, the per-window
+-- keybinds and the show-all keybind cannot disagree about how it is done.
+--
+-- Showing one of Blizzard's deliberately does not go through
+-- ShowNewSecondarySessionWindow: that picks the first free slot, so on a
+-- character that has never opened a second window "show window 3" would open
+-- window 2. Addressing the index directly is what the caller asked for.
+function Windows.SetShown(index, shown)
+    if index == 1 then
+        return
+    end
+
+    if Windows.IsOurs(index) then
+        local window = ourWindows[index]
+        local saved = GetSaved()[index]
+
+        if window and saved then
+            saved.shown = shown
+            window:SetShown(shown)
+        end
+
+        return
+    end
+
+    local window = DamageMeter:GetSessionWindow(index)
+
+    if not shown then
+        if window and window:IsShown() then
+            DamageMeter:HideSessionWindow(window)
+        end
+
+        return
+    end
+
+    if window and window:IsShown() then
+        return
+    end
+
+    if not DamageMeter:CanShowNewSecondarySessionWindow() then
+        return
+    end
+
+    local windowData = DamageMeter:GetWindowDataList()[index]
+
+    if windowData then
+        DamageMeter:SetupSessionWindow(index, windowData)
+
+        -- SetupSessionWindow alone does not record that the window is showing;
+        -- the function Blizzard uses for that is file-local. Re-setting the
+        -- lock to the value it already has is a no-op that runs the same save.
+        DamageMeter:SetSessionWindowLocked(window or DamageMeter:GetSessionWindow(index), windowData.locked or false)
+    else
+        -- CreateWindowData records the new window itself.
+        DamageMeter:CreateWindowData(index)
+    end
+end
+
+function Windows.IsIndexShown(index)
+    local window = Windows.Get(index)
+    return window ~= nil and window:IsShown()
+end
+
+-- Every window that can be toggled: Blizzard's 2 and 3 as long as it has data
+-- for them, whether or not their frame exists yet, and every saved one of ours.
+function Windows.SecondaryIndices()
+    local present = {}
+
+    for index = 2, Windows.BLIZZARD_WINDOW_COUNT do
+        if DamageMeter:GetWindowDataList()[index] or DamageMeter:GetSessionWindow(index) then
+            present[index] = true
+        end
+    end
+
+    for index in pairs(GetSaved()) do
+        if Windows.IsOurs(index) then
+            present[index] = true
+        end
+    end
+
+    return Windows.SortedIndices(present)
+end
+
 -- Window 1's size is an Edit Mode setting, written by Blizzard's own resize
 -- handle with exactly this call (EditModeSystemTemplates.lua:3438). Our stack
 -- is tainted, so a refusal is reported rather than allowed to error.
