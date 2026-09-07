@@ -1,67 +1,144 @@
 # DamageMeterCompanion - in-game checklist
 
-Everything the headless build cannot verify. Rewritten 2026-09-07 evening after the taint cut (see DECISIONS.md); windows beyond Blizzard's three and the addon's own right-click menu are gone because those features are; hover is back as a frame of our own.
+Everything the headless build could not verify, in the order it makes sense to run. No agent performed any of these; none of them are claimed as passing.
 
-Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. **The bar for every section is the same: BugSack stays empty, in combat and out.**
+Setup: `/reload`, then hit a target dummy so the meter has data.
 
 ## 1. It loads at all
 
 - [ ] No Lua error on login.
-- [ ] `/dmc` opens the settings panel; the meter's own gear menu has a DamageMeterCompanion settings entry that opens it too, and in combat prints a message instead.
-- [ ] `/dmc probe` and `/dmc diag` print without error.
+- [ ] `/dmc` opens the settings panel.
+- [ ] `/dmc probe` prints a line. No message about an unlisted damage meter type appeared at login.
 
-## 2. Numbers
+## 2. The probe - run this early, two answers depend on it
 
-- [ ] In combat the bars read `56.72M` or `56.72M (40.6K)` depending on the Edit Mode Numbers setting, steady, no flicker back to `56716 K`.
-- [ ] Complete mode shows the percentage only when the values are readable, which is out of combat once Blizzard has refreshed with plain rows.
-- [ ] The spell breakdown (opened with Blizzard's own click) reads the full form.
-- [ ] Turning Readable numbers off puts Blizzard's text back within a moment; on again re-formats.
-- [ ] A full pull with the breakdown open and closed, then leave combat: **no `attempt to compare` warnings**.
+- [ ] Out of combat: `/dmc probe`. Expected all four `secret` values `false` and `SetCVar ... allowed: true`.
+- [ ] In combat, still hitting the dummy: `/dmc probe`. The design expects `totalAmount`, `amountPerSecond` and `sessionTotalAmount` `true`, `deathRecapID` `false`.
 
-## 2b. Hover and the type menu
+If `SetCVar` is refused in combat, the toggle binding prints a message instead of working, which is already handled.
 
-- [ ] Resting the cursor on your own bar shows the spell panel beside the window; moving off closes it; moving into the panel keeps it.
-- [ ] In combat the panel shows and updates, BugSack stays empty.
-- [ ] In a party, hovering another member's bar shows their spells when their class is unique in the party; a duplicate class shows nothing.
-- [ ] Clicking a bar opens Blizzard's breakdown and the hover panel stays away while it is shown.
-- [ ] The header type dropdown ends with Lock/Unlock, Hide window, Reset and DamageMeterCompanion settings, and each works.
+## 3. Numbers
 
-## 3. Snapping and size matching
+- [ ] In combat, the bars read like `56.72M` or `56.72M (40.6K)` depending on the Edit Mode Numbers setting, not `56716 K`. No percentage while in combat - expected.
+- [ ] Out of combat, after leaving combat, Complete mode shows the percentage as well: `56.72M (40.6K) 18.0%`.
+- [ ] The spell breakdown reads the full form regardless of that setting - it always forces Complete.
+- [ ] Turning Readable numbers off puts Blizzard's own text back within a moment; turning it on again re-formats.
+- [ ] No `attempt to compare` warnings in BugSack after a full pull.
 
-- [ ] Dragging window 2 so its top edge nears the bottom of window 1 shows the green bars, and on release it sits flush and matches window 1's width.
+## 4. Hover
+
+- [ ] Hovering a bar opens the spell breakdown after a short delay.
+- [ ] Moving the cursor off the bar closes it.
+- [ ] Moving the cursor from the bar into the breakdown keeps it open.
+- [ ] Left-clicking a bar opens the breakdown (Blizzard's own click), Shift-click pins it; a pinned one survives the cursor leaving and any later hover.
+- [ ] In combat, hover does nothing and clicking still opens the breakdown, with no error in BugSack.
+- [ ] After the pull ends, hover comes back on its own once the meter has refreshed with readable rows - note how long that takes; `/dmc probe` says whether a fetch made right now is still Secret.
+- [ ] An unpinned breakdown closes as combat starts - expected.
+- [ ] Hovering a row in the Deaths display does **not** open the death recap. Clicking it still does.
+- [ ] `/dmc hover` turns hover off and clicking still works.
+
+## 4b. Taint - the one that decides what ships
+
+Nothing of ours hooks Blizzard's render path any more, so the remaining question is whether the actions we start from tainted code warn in combat.
+
+- [ ] In combat: hover a bar. Nothing opens and BugSack stays empty.
+- [ ] In combat: right-click a bar and switch type. BugSack stays empty.
+- [ ] In combat: left-click a bar. The breakdown opens (Blizzard's handler) and BugSack stays empty.
+If any of these warns, that action goes out-of-combat-only and the design note in DECISIONS.md gets the answer.
+
+## 5. Right-click menu
+
+- [ ] Right-clicking a bar opens a menu at the cursor: three type submenus, a segment submenu, window actions.
+- [ ] Picking Healing Done switches the window, and the header dropdown agrees.
+- [ ] Picking a segment switches it, and the header segment widget agrees.
+- [ ] Show new window and Hide window work; Hide is greyed out on window 1.
+- [ ] The menu has a Settings entry and it opens the panel.
+- [ ] **In combat**: hover a bar to open the breakdown, then right-click and switch type. No Lua error. This is the one path where our menu drives Blizzard's refresh over secret values, and nothing headless could check it.
+- [ ] In the Deaths display, the right column shows a time like `3m 22s`, not a number.
+
+## 6. Snapping and size matching
+
+Open two more windows from the menu so all three exist.
+
+- [ ] Dragging window 2 so its top edge nears the bottom of window 1 makes it jump flush, and its width becomes window 1's.
 - [ ] Moving window 1 in Edit Mode carries window 2 with it.
-- [ ] Resizing window 1 in Edit Mode resizes window 2's width to match.
-- [ ] Dragging window 2 well away breaks the link.
+- [ ] Resizing window 1 in Edit Mode resizes window 2's width to match, clamped at 600 if window 1 is wider.
+- [ ] Dragging window 2 well away breaks the link and it moves freely.
 - [ ] Snapping window 3 to the right of window 2 matches heights instead of widths.
-- [ ] Chain: 3 under 2, 2 under 1. Resizing window 1 resizes both.
-- [ ] Lock window 2, resize window 1: window 2 does not resize.
-- [ ] Detach window 2, `/reload`: it comes back where it was.
-- [ ] Hide a snapped window, show it again from the gear menu: it comes back attached.
-- [ ] Dropping a window near a screen edge with no window near lands it flush; the bars show on the window's and the screen's edge.
-- [ ] Gap of 6 on a linked window separates the pair by six pixels and survives a reload.
-- [ ] `/reload` keeps every link and size.
+- [ ] Right-clicking a bar in a linked window shows Match width and Match height; toggling them takes effect immediately and the menu stays open.
+- [ ] `/reload` keeps every link and every matched size.
+- [ ] Window 1 cannot be dragged at all, so it never becomes a snap source.
 
-## 4. Transparency and layer
+These four came out of the Task 6 review and are the ones most likely to catch something:
 
-- [ ] Mouse away: roughly 40 percent of the Edit Mode transparency. Mouse over: the Edit Mode value.
-- [ ] Cursor moving from the bars into an open breakdown keeps both at full alpha; leaving dims them within about a fifth of a second.
-- [ ] A window shown from the gear menu picks up the idle transparency and the layer immediately.
+- [ ] Chain of three: 3 snapped under 2, 2 snapped under 1. Resizing window 1 resizes **both** 2 and 3.
+- [ ] Lock window 2 from the settings dropdown, then resize window 1. Window 2 must **not** resize.
+- [ ] Detach window 2, `/reload`. It must come back where you left it, not at a default offset.
+- [ ] Hide a snapped window, then show it again. It must come back attached.
+
+## 7. Transparency and layer
+
+- [ ] With the mouse away the meter sits at roughly 40 percent of its Edit Mode transparency.
+- [ ] Moving the mouse over it brings it to the Edit Mode value; moving away dims it again.
+- [ ] Hovering a bar opens the breakdown; moving the cursor **into** the breakdown keeps both at full alpha, and leaving it dims them again within about a fifth of a second.
+- [ ] Open a new window from the menu or its keybind. It picks up the idle transparency and the chosen layer immediately, without a reload.
 - [ ] Changing Transparency in Edit Mode still works and both states move with it.
-- [ ] The Layer dropdown moves the meter above other frames, breakdown still in front of the bars.
+- [ ] A window set to uninteractable stays dim. Expected - its mouse is disabled.
+- [ ] The Layer dropdown moves the meter above other frames, with the breakdown still in front of the bars.
 
-## 5. Key bindings
+## 8. Key bindings
 
-- [ ] Three bindings under DamageMeterCompanion: toggle the meter, hide all extra windows, reset data.
-- [ ] The toggle hides and shows the whole meter out of combat; in combat it works or prints a message, never throws.
-- [ ] Hide all hides windows 2 and 3; they come back through the gear menu's Show new window.
-- [ ] Reset clears the meter like the gear menu's Reset.
+- [ ] A DamageMeterCompanion category exists in Key Bindings with three bindings.
+- [ ] The toggle hides and shows the whole meter out of combat.
+- [ ] Pressed in combat it either works or prints a message. It never throws.
+- [ ] On a character that has never opened a secondary window, the "window 3" key opens window **3**, not window 2.
+- [ ] The "all extra windows" key hides every open extra window, and pressing it again brings back exactly those.
+- [ ] The reset key clears the meter, same as the gear dropdown's Reset.
 
-## 6. Settings panel
+## 8b. Extra windows and chaining
 
-- [ ] The behaviour page has readable numbers, snapping, snap distance, idle transparency, layer, and at the bottom a Blizzard section with Enable Damage Meter and Auto Reset that mirror Gameplay Enhancements both ways.
-- [ ] The Windows page lists three rows. Ticking Shown on a hidden slot shows the window and offers a reload; after the reload the window is there and combat logs nothing. Window 1's size boxes route through Edit Mode; a size Edit Mode refuses prints a message.
-- [ ] Typing an out-of-range width comes back clamped. A locked window's boxes are greyed.
-- [ ] Lock per row, Lock all and Unlock all agree with the gear menu's lock state.
-- [ ] Hide on a row hides the window; the row stays.
-- [ ] Snapping two windows and reopening the page shows the link, gap and match flags; Detach drops it.
-- [ ] **After typing a size for window 1, open Edit Mode and press Save**: no "Interface action failed because of an addon".
+Everything in this section is new and none of it has ever run.
+
+- [ ] `/dmc` → Windows. On a fresh character the page lists three rows, and ticking row 2's Shown box creates window 2.
+- [ ] **Add window** creates a fourth. It draws bars, and its own gear dropdown offers type, segment, lock, uninteractable, minimize and hide, each of which works.
+- [ ] The new window's appearance matches Blizzard's. Change Bar Height in Edit Mode and confirm the new window changes too.
+- [ ] Hover, the right-click menu, the idle transparency and the snap preview all work on the new window, not just on Blizzard's.
+- [ ] Add two more, chain them: 4 under 3, 5 under 4, 6 under 5. Move window 1 in Edit Mode and confirm the whole chain follows.
+- [ ] `/reload`. Every window, its size, its position and every link survives.
+- [ ] Remove the middle window of a chain. The one that pointed at it comes free and stays where it was, including after a reload.
+- [ ] Hide one of our windows, then click Add window. The hidden one comes back rather than a new one being created - that is deliberate and mirrors Blizzard.
+- [ ] Give a window a bar height override of 20 and a text size of 80. Both take effect on that window only. Clearing the box returns it to following Edit Mode.
+- [ ] Type 0 into a bar height override. It is refused and the box comes back blank.
+
+## 8c. Snap preview and gap
+
+- [ ] Dragging a window near another shows a green bar on both edges that will meet, and nothing when out of range.
+- [ ] The bars vanish on release, and turning snapping off in the panel stops them appearing at all.
+- [ ] The bars appear on the correct edges for all four directions - below, above, left and right.
+- [ ] Drag a window to within the snap distance of a screen edge with no other window near: the bars show on the window's edge and the screen's, and on release it lands flush.
+- [ ] Set a gap of 6 on a linked window. The pair separates by six pixels and the value survives a reload.
+
+## 8d. Sizes
+
+- [ ] Type a width for window 1. It resizes, and the value survives a reload.
+- [ ] An out-of-range width comes back clamped in the box.
+- [ ] A size Edit Mode refuses prints a message rather than silently reverting.
+- [ ] Lock a window from its gear dropdown. Its size boxes grey out and a typed size is refused.
+- [ ] **After typing a size for window 1, open Edit Mode and press Save.** This is the one place the addon writes into Blizzard's Edit Mode layout from a tainted stack. Watch for "Interface action failed because of an addon" or a layout that fails to persist. If either happens, tell me - the fix is to drop the panel's control over window 1's size and leave it to Edit Mode's own slider.
+
+## 9. Settings panel
+
+- [ ] `/dmc` opens it with the behaviour options and a Windows subcategory.
+- [ ] Every checkbox and slider changes behaviour immediately and survives a reload.
+- [ ] The Windows page lists three rows. Window 1 says its size is controlled by Edit Mode and its Shown box is disabled.
+- [ ] Snapping two windows and reopening the page shows the link and the match flags.
+- [ ] Detach drops the link and the window then moves freely.
+- [ ] Lock all locks every window except window 1; Unlock all releases them. The row checkboxes agree.
+
+## 10. Panel lock and Remove
+
+- [ ] The Windows page has a lock box per row. Ticking it locks that window: it cannot be dragged, and its size boxes grey out.
+- [ ] Window 1's lock box is disabled.
+- [ ] Remove is now enabled on Blizzard's windows 2 and 3 while they are shown. Clicking it puts the window away and the row stays as an empty slot.
+- [ ] Removing a window that something was attached to leaves that other window where it was.
+- [ ] The right-click menu no longer carries Match width and Match height. Both still work from the Windows page.

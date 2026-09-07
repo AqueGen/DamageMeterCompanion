@@ -84,11 +84,14 @@ local function BuildBlizzardOptions()
 end
 
 local function BuildBehaviourOptions()
-    AddCheckbox("hover", "Details on hover",
-        "Resting the cursor on a bar shows that source's spells beside the window. It is the addon's own panel fed from the meter's data, so it works in combat; Blizzard's own breakdown, opened by clicking a bar, takes priority while it is open.")
+    AddCheckbox("hover", "Open details on hover",
+        "Hovering a bar opens the spell breakdown instead of requiring a click.")
 
     AddSlider("hoverDelay", "Hover delay",
-        "How long the cursor must rest on a bar before the panel appears.", 0, 1, 0.05, "%.2f")
+        "How long the cursor must rest on a bar before the breakdown opens.", 0, 1, 0.05, "%.2f")
+
+    AddCheckbox("menu", "Right-click menu",
+        "Right-clicking a bar opens a menu for the tracked type, the segment and window actions.")
 
     AddCheckbox("format", "Readable numbers",
         "Show 56.72M instead of 56716 K. The percentage is shown only out of combat, because it is the one part that needs arithmetic on values that are Secret in combat.",
@@ -134,24 +137,6 @@ local function BuildBehaviourOptions()
     BuildBlizzardOptions()
 end
 
--- The gear dropdown on every meter window is tagged, which is Blizzard's own
--- extension point: Menu.ModifyMenu callbacks run through securecallfunction
--- at the boundary, so adding an entry is clean. What the entry does when
--- pressed is our code - opening the settings panel touches nothing of the
--- meter's.
-local function AddSettingsToWindowDropdown()
-    if not Menu or not Menu.ModifyMenu then
-        return
-    end
-
-    Menu.ModifyMenu("MENU_DAMAGE_METER_WINDOW_SETTINGS", function(_, rootDescription)
-        rootDescription:CreateDivider()
-        rootDescription:CreateButton("DamageMeterCompanion settings", function()
-            ns.Config.Open()
-        end)
-    end)
-end
-
 -- Settings.OpenToCategory reaches the protected OpenSettingsPanel, which an
 -- addon may not call in combat. Blizzard's own entry in the same dropdown works
 -- because their code is not tainted; ours is blocked and would otherwise fail
@@ -170,7 +155,6 @@ function Config.Enable()
     BuildBehaviourOptions()
     Settings.RegisterAddOnCategory(category)
 
-    AddSettingsToWindowDropdown()
     ns.Config.BuildWindowPanel()
 end
 
@@ -217,40 +201,97 @@ local function CreateSizeBox(row, index, dimension)
     return box
 end
 
-StaticPopupDialogs["DAMAGEMETERCOMPANION_RELOAD"] = {
-    text = "Window %d is shown. Until the UI is reloaded it carries the addon's taint and will log a warning per row in combat. Reload now?",
-    button1 = RELOADUI,
-    button2 = CANCEL,
-    OnAccept = function() ReloadUI() end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
+-- ApplyAppearance feeds barHeight to SetBarHeight and textSize to SetTextScale,
+-- so the stored text override is a scale around 1. Edit Mode's own control
+-- shows that as a percentage, so the box speaks percent and converts - which
+-- also keeps a whole-number box useful, since 1 would otherwise be the only
+-- reachable value below double size.
+-- The bounds are Edit Mode's own, from EditModeSettingDisplayInfo.lua. Below
+-- the minimum means "follow Edit Mode again", because a zero bar height is a
+-- legal number, a broken window, and something that would persist and be
+-- re-applied on every login.
+local OVERRIDE_RANGES = {
+    barHeight = { minimum = 15, maximum = 40, unit = 1 },
+    textSize = { minimum = 50, maximum = 150, unit = 100 },
 }
 
-local function ToggleShown(index)
-    if ns.Windows.IsIndexShown(index) then
-        ns.Windows.Hide(index)
-        return
-    end
+local function CreateOverrideBox(row, index, key)
+    local range = OVERRIDE_RANGES[key]
+    local box = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+    box:SetAutoFocus(false)
+    box:SetNumeric(true)
+    box:SetMaxLetters(3)
+    box:SetSize(36, 20)
 
-    if InCombatLockdown() then
-        ns.Print("a window cannot be shown in combat")
-        return
-    end
+    box:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        RefreshWindowPanel()
+    end)
 
-    if ns.Windows.Show(index) then
-        StaticPopup_Show("DAMAGEMETERCOMPANION_RELOAD", index)
-    end
+    box:SetScript("OnEnterPressed", function(self)
+        local saved = ns.charDb.windows[index]
+
+        if saved then
+            local value = tonumber(self:GetText())
+
+            -- An empty box, or one below the range, means follow Edit Mode
+            -- again. Anything else is clamped, and the refresh below shows the
+            -- clamped value - the same contract the size boxes already keep.
+            if value and value >= range.minimum then
+                saved[key] = ns.Snap.Clamp(value, range.minimum, range.maximum) / range.unit
+            else
+                saved[key] = nil
+            end
+
+            local window = ns.Windows.Get(index)
+            if window then
+                ns.Windows.ApplyAppearance(window, index)
+            end
+        end
+
+        self:ClearFocus()
+        RefreshWindowPanel()
+    end)
+
+    return box
 end
 
--- Windows.Indices only lists a Blizzard window once it has been shown; the
--- panel lists all three slots so a hidden one still has a row saying how to
--- bring it back. RefreshRow already handles a nil window.
+local function RefreshOverrideBox(box, index, key)
+    local saved = ns.charDb.windows[index]
+
+    -- Blizzard's three take their appearance from Edit Mode, and their row says
+    -- so in its note rather than offering a box that could not be honoured.
+    local enabled = ns.Windows.IsOurs(index) and saved ~= nil
+
+    box:SetEnabled(enabled)
+
+    -- Never overwrite a box the user is typing in; the throttled refresh in
+    -- BuildWindowPanel runs while the page is open.
+    if box:HasFocus() then
+        return
+    end
+
+    local value = enabled and saved[key]
+
+    box:SetText(value and math.floor(value * OVERRIDE_RANGES[key].unit + 0.5) or "")
+end
+
+local function ToggleShown(index)
+    ns.Windows.SetShown(index, not ns.Windows.IsIndexShown(index))
+end
+
+-- Windows.Indices only lists a Blizzard window once it has been shown, but the
+-- panel is where the player switches windows 2 and 3 on in the first place, so
+-- their rows have to be there whether or not the frame exists yet. RefreshRow
+-- already handles a nil window.
 local function PanelIndices()
     local present = {}
 
     for index = 1, ns.Windows.BLIZZARD_WINDOW_COUNT do
+        present[index] = true
+    end
+
+    for _, index in ipairs(ns.Windows.Indices()) do
         present[index] = true
     end
 
@@ -266,22 +307,13 @@ local function CreateRow(parent, index)
 
     row.Shown = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.Shown:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -2)
-    row.Shown:SetScript("OnEnter", function(self)
-        GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-        GameTooltip:SetText("Show or hide this window")
-        GameTooltip:AddLine("Hiding is clean. Showing from here runs Blizzard's setup inside the addon's taint, so the window logs a warning per row in combat until the UI is reloaded - you will be offered a reload. The gear menu's Show new window needs no reload.", 1, 1, 1, true)
-        GameTooltip:Show()
-    end)
-    row.Shown:SetScript("OnLeave", GameTooltip_Hide)
     row.Shown:SetScript("OnClick", function()
         ToggleShown(index)
         RefreshWindowPanel()
     end)
 
     row.Size = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.Size:SetPoint("LEFT", row.Shown, "RIGHT", 6, 0)
-    row.Size:SetWidth(70)
-    row.Size:SetJustifyH("LEFT")
+    row.Size:SetPoint("LEFT", row.Shown, "RIGHT", 40, 0)
 
     row.Width = CreateSizeBox(row, index, "width")
     row.Width:SetPoint("LEFT", row.Size, "RIGHT", 12, 0)
@@ -289,11 +321,25 @@ local function CreateRow(parent, index)
     row.Height = CreateSizeBox(row, index, "height")
     row.Height:SetPoint("LEFT", row.Width, "RIGHT", 8, 0)
 
+    row.BarHeightLabel = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    row.BarHeightLabel:SetPoint("LEFT", row.Height, "RIGHT", 16, 0)
+    row.BarHeightLabel:SetText("bar h")
+
+    row.BarHeight = CreateOverrideBox(row, index, "barHeight")
+    row.BarHeight:SetPoint("LEFT", row.BarHeightLabel, "RIGHT", 8, 0)
+
+    row.TextSizeLabel = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    row.TextSizeLabel:SetPoint("LEFT", row.BarHeight, "RIGHT", 12, 0)
+    row.TextSizeLabel:SetText("text %")
+
+    row.TextSize = CreateOverrideBox(row, index, "textSize")
+    row.TextSize:SetPoint("LEFT", row.TextSizeLabel, "RIGHT", 8, 0)
+
     -- The same lock the window's own gear dropdown offers, brought here so the
     -- page that sets a size can also stop that size being dragged away. Routed
     -- through the window's owner, never DamageMeter, so it is correct for ours.
     row.Lock = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-    row.Lock:SetPoint("LEFT", row.Height, "RIGHT", 16, 0)
+    row.Lock:SetPoint("LEFT", row.TextSize, "RIGHT", 16, 0)
     row.Lock.Text:SetText("lock")
     row.Lock:SetScript("OnClick", function(self)
         local window = ns.Windows.Get(index)
@@ -376,9 +422,9 @@ local function CreateRow(parent, index)
     row.Remove = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
     row.Remove:SetSize(80, 22)
     row.Remove:SetPoint("LEFT", row.Detach, "RIGHT", 8, 0)
-    row.Remove:SetText("Hide")
+    row.Remove:SetText("Remove")
     row.Remove:SetScript("OnClick", function()
-        ns.Windows.Hide(index)
+        ns.Windows.Remove(index)
         RefreshWindowPanel()
     end)
 
@@ -406,7 +452,7 @@ local function RefreshRow(row, index)
     if shown then
         row.Size:SetText(("%d x %d"):format(window:GetWidth(), window:GetHeight()))
     else
-        row.Size:SetText("hidden")
+        row.Size:SetText("-")
     end
 
     -- Window 1 gets the size boxes too: Windows.SetSize routes it through
@@ -430,15 +476,18 @@ local function RefreshRow(row, index)
         row.Height:SetText(shown and math.floor(window:GetHeight() + 0.5) or "")
     end
 
+    RefreshOverrideBox(row.BarHeight, index, "barHeight")
+    RefreshOverrideBox(row.TextSize, index, "textSize")
+
     -- Window 1 is never lockable: Blizzard's owner refuses to move or resize it
     -- whatever the flag says, so offering the box would promise nothing.
     row.Lock:SetChecked(shown and window:IsLocked() or false)
     row.Lock:SetEnabled(shown and not isPrimary)
 
     if isPrimary then
-        row.Note:SetText("Size comes from Edit Mode.")
-    elseif not shown then
-        row.Note:SetText("Ticking Shown reloads the UI afterwards - see the tooltip.")
+        row.Note:SetText("Size and appearance come from Edit Mode.")
+    elseif not ns.Windows.IsOurs(index) then
+        row.Note:SetText("Appearance comes from Edit Mode.")
     else
         row.Note:SetText("")
     end
@@ -461,8 +510,10 @@ local function RefreshRow(row, index)
     row.MatchHeight:SetEnabled(link ~= nil and not isPrimary)
     row.Detach:SetEnabled(link ~= nil and not isPrimary)
 
-    -- Hiding is the only direction that is clean from addon code; see Windows.Hide.
-    row.Remove:SetEnabled(not isPrimary and shown)
+    -- Window 1 is the primary and cannot go away. Ours are destroyed; Blizzard's
+    -- 2 and 3 are put away through its own owner, since their slots are part of
+    -- its window data list whatever we do.
+    row.Remove:SetEnabled(not isPrimary and (ns.Windows.IsOurs(index) or shown))
 end
 
 function RefreshWindowPanel()
@@ -477,6 +528,8 @@ function RefreshWindowPanel()
         RefreshRow(windowPanel:AcquireRow(index, position), index)
     end
 
+    -- A removed window leaves its row behind rather than destroying it: frames
+    -- cannot be destroyed, and the index can come back.
     for index, row in pairs(windowPanel.rows) do
         if not present[index] then
             row:Hide()
@@ -490,11 +543,17 @@ end
 function Config.BuildWindowPanel()
     -- A plain frame, not SettingsListTemplate: the canvas subcategory sizes the
     -- frame to fill the panel, and the template would add a list we do not use.
+    -- Nothing here scrolls - SettingsCanvas nops the mouse wheel - so a player
+    -- who keeps adding windows eventually pushes a row off the bottom of the
+    -- page with no way to reach it. The soft cap warning is what stands between
+    -- them and that.
     windowPanel = CreateFrame("Frame")
     windowPanel:SetSize(600, 240)
     windowPanel:Hide()
 
-    -- Rows are pooled by window index.
+    -- Rows are pooled by window index, not by position: an index that comes
+    -- back after a Remove finds the row it had, and the position only decides
+    -- where that row is anchored this refresh.
     windowPanel.rows = {}
 
     function windowPanel:AcquireRow(index, position)
@@ -512,7 +571,18 @@ function Config.BuildWindowPanel()
         return row
     end
 
-    -- Window 1 is skipped: its owner refuses the lock regardless.
+    windowPanel.AddWindow = CreateFrame("Button", nil, windowPanel, "UIPanelButtonTemplate")
+    windowPanel.AddWindow:SetSize(120, 22)
+    windowPanel.AddWindow:SetPoint("BOTTOMLEFT", windowPanel, "BOTTOMLEFT", 20, 20)
+    windowPanel.AddWindow:SetText("Add window")
+    windowPanel.AddWindow:SetScript("OnClick", function()
+        ns.Windows.Create()
+        RefreshWindowPanel()
+    end)
+
+    -- Through each window's own owner, never DamageMeter directly, so the
+    -- same button is right for ours above index three. Window 1 is skipped:
+    -- its owner refuses the lock regardless.
     local function SetAllLocked(locked)
         ns.Windows.ForEach(function(window, index)
             if index ~= 1 then
@@ -525,7 +595,7 @@ function Config.BuildWindowPanel()
 
     windowPanel.LockAll = CreateFrame("Button", nil, windowPanel, "UIPanelButtonTemplate")
     windowPanel.LockAll:SetSize(100, 22)
-    windowPanel.LockAll:SetPoint("BOTTOMLEFT", windowPanel, "BOTTOMLEFT", 20, 20)
+    windowPanel.LockAll:SetPoint("LEFT", windowPanel.AddWindow, "RIGHT", 12, 0)
     windowPanel.LockAll:SetText("Lock all")
     windowPanel.LockAll:SetScript("OnClick", function() SetAllLocked(true) end)
 
@@ -537,9 +607,9 @@ function Config.BuildWindowPanel()
 
     windowPanel:SetScript("OnShow", RefreshWindowPanel)
 
-    -- Everything shown here can change from outside the panel: the keybinds,
-    -- Blizzard's own Hide, a mouse resize. Polling twice a second is cheaper
-    -- than hooking all of them.
+    -- Everything shown here can change from outside the panel: the right-click
+    -- menu's match entries, the window keybinds, Blizzard's own Hide, a mouse
+    -- resize. Polling twice a second is cheaper than hooking all of them.
     windowPanel:SetScript("OnUpdate", function(self, elapsed)
         self.sinceRefresh = (self.sinceRefresh or 0) + elapsed
 

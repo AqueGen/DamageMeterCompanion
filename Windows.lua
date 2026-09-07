@@ -1,19 +1,35 @@
 local addonName, ns = ...
 
--- The registry of Blizzard's meter windows: which exist, in order, and the
--- few operations on them that are clean on 12.x.
---
--- Everything here is C-side frame state or a call whose Blizzard body writes
--- nothing its render path reads back. What is deliberately absent, and why,
--- is in docs/DECISIONS.md: showing a window from addon code, creating windows
--- of our own, and switching a window's type or segment all run Blizzard's
--- Refresh inside our taint, and that poisons the window until /reload.
 ns.Windows = {}
 local Windows = ns.Windows
 
 -- Blizzard's own MAX_DAMAGE_METER_SESSION_WINDOWS, which is file-local to
--- DamageMeter.lua.
+-- DamageMeter.lua. Windows above this index are created and owned by us.
 Windows.BLIZZARD_WINDOW_COUNT = 3
+
+-- Not a limit. Past this many windows we say once that each one is a scroll
+-- box refreshed on every combat event, and let the player decide.
+Windows.SOFT_CAP = 10
+
+-- Truncated or hand-edited saved variables can hand us a link with no `to`,
+-- and every index path in this file runs through here first.
+function Windows.IsOurs(index)
+    if type(index) ~= "number" then
+        return false
+    end
+
+    return index > Windows.BLIZZARD_WINDOW_COUNT
+end
+
+function Windows.NextFreeIndex(taken)
+    local index = Windows.BLIZZARD_WINDOW_COUNT + 1
+
+    while taken[index] do
+        index = index + 1
+    end
+
+    return index
+end
 
 function Windows.SortedIndices(set)
     local indices = {}
@@ -27,16 +43,18 @@ function Windows.SortedIndices(set)
     return indices
 end
 
+-- Frames we created, keyed by index. Blizzard's live in its own window data
+-- list and are reached through the owner.
+local ourWindows = {}
+
 function Windows.Get(index)
-    if type(index) ~= "number" then
-        return nil
+    if Windows.IsOurs(index) then
+        return ourWindows[index]
     end
 
     return DamageMeter:GetSessionWindow(index)
 end
 
--- Only windows whose frame exists. Blizzard builds a secondary window's frame
--- the first time it is shown, so a slot that has never been opened is absent.
 function Windows.Indices()
     local present = {}
 
@@ -44,6 +62,10 @@ function Windows.Indices()
         if DamageMeter:GetSessionWindow(index) then
             present[index] = true
         end
+    end
+
+    for index in pairs(ourWindows) do
+        present[index] = true
     end
 
     return Windows.SortedIndices(present)
@@ -58,42 +80,421 @@ function Windows.ForEach(func)
     end
 end
 
-function Windows.IsIndexShown(index)
-    local window = Windows.Get(index)
-    return window ~= nil and window:IsShown()
+local function GetSaved()
+    return ns.charDb.windows
 end
 
--- Hiding is clean: HideSessionWindow ends in Hide(), and the OnHide it runs
--- only clears fields. Showing is not - see Windows.Show.
-function Windows.Hide(index)
-    local window = Windows.Get(index)
+local creationCallbacks = {}
 
-    if window and index ~= 1 and window:IsShown() and DamageMeter:CanHideSessionWindow(window) then
-        DamageMeter:HideSessionWindow(window)
+-- A module that installs per-window hooks registers here, and gets called for
+-- every window we build afterwards. Registering is idempotent from the
+-- module's side: HookInstance is keyed by handler and HookScript chains, so a
+-- window that was also covered by an enable-time walk is not hooked twice in
+-- any way that matters.
+function Windows.OnCreated(callback)
+    table.insert(creationCallbacks, callback)
+end
+
+function Windows.ResolveAppearance(mirrored, override)
+    if override then
+        return override
+    end
+
+    return mirrored
+end
+
+-- Blizzard pushes these onto its own three windows whenever Edit Mode changes
+-- one. Ours are not in its list, so we mirror them. A setting Blizzard adds in
+-- a future patch will not reach our windows until it is added here too - that
+-- is the standing cost of having more windows than Blizzard supports.
+function Windows.ApplyAppearance(window, index)
+    local saved = GetSaved()[index] or {}
+
+    window:SetUseClassColor(DamageMeter:ShouldUseClassColor())
+    window:SetBarSpacing(DamageMeter:GetBarSpacing())
+    window:SetShowBarIcons(DamageMeter:ShouldShowBarIcons())
+    window:SetBackgroundAlpha(DamageMeter:GetBackgroundAlpha())
+    window:SetStyle(DamageMeter:GetStyle())
+    window:SetNumberDisplayType(DamageMeter:GetNumberDisplayType())
+
+    -- Alpha is deliberately absent: Presence owns it, and pushing the raw Edit
+    -- Mode value here would yank every unhovered window to full opacity on any
+    -- appearance change.
+    window:SetBarHeight(Windows.ResolveAppearance(DamageMeter:GetBarHeight(), saved.barHeight))
+    window:SetTextScale(Windows.ResolveAppearance(DamageMeter:GetTextScale(), saved.textSize))
+end
+
+function Windows.ApplyAppearanceToOurs()
+    for index, window in pairs(ourWindows) do
+        Windows.ApplyAppearance(window, index)
+    end
+
+    if ns.Presence then
+        for _, window in pairs(ourWindows) do
+            ns.Presence.ApplyAlpha(window)
+        end
     end
 end
 
--- Showing from addon code is the one thing here that is not clean, and it is
--- offered anyway because the panel is where the player expects to switch a
--- window on. SetupSessionWindow runs Blizzard's whole setup - two refreshes -
--- inside our taint, and that window then logs a Secret-comparison warning per
--- row in every fight until the UI is reloaded. A reload clears it entirely:
--- Blizzard restores the window itself at login, untainted, because its saved
--- data says shown. So the caller prompts for one.
+local function Store(index, key, value)
+    local saved = GetSaved()
+
+    saved[index] = saved[index] or {}
+    saved[index][key] = value
+end
+
+-- ClearLink is the second way one of our windows gets an absolute position,
+-- and the only one that is not a drag, so it has to record it too or the
+-- window returns to the cascade default next login.
+function Windows.StorePosition(index, left, bottom)
+    if not Windows.IsOurs(index) then
+        return
+    end
+
+    Store(index, "left", left)
+    Store(index, "bottom", bottom)
+end
+
+-- A session window calls its owner for sixteen things and never checks what the
+-- owner is (DamageMeterSessionWindow.lua:792). Giving ours this table instead
+-- of DamageMeter keeps every call away from SetSavedWindowData, which asserts
+-- on any index above three.
+Windows.proxyOwner = {}
+local proxy = Windows.proxyOwner
+
+function proxy:SetSessionWindowDamageMeterType(window, damageMeterType)
+    Store(window:GetSessionWindowIndex(), "damageMeterType", damageMeterType)
+    window:SetDamageMeterType(damageMeterType)
+end
+
+function proxy:SetSessionWindowSessionID(window, sessionType, sessionID)
+    local index = window:GetSessionWindowIndex()
+
+    -- sessionID is deliberately not persisted, for the reason Blizzard gives in
+    -- SetSavedWindowData: it names one of the player's recent encounters and
+    -- means nothing next session.
+    Store(index, "sessionType", sessionType)
+    window:SetSession(sessionType, sessionID)
+end
+
+function proxy:SetSessionWindowLocked(window, locked)
+    Store(window:GetSessionWindowIndex(), "locked", locked)
+    window:SetLocked(locked)
+end
+
+function proxy:SetSessionWindowNonInteractive(window, nonInteractive)
+    Store(window:GetSessionWindowIndex(), "nonInteractive", nonInteractive)
+    window:SetNonInteractive(nonInteractive)
+end
+
+function proxy:SetSessionWindowMinimized(window, minimized)
+    Store(window:GetSessionWindowIndex(), "minimized", minimized)
+    window:SetMinimized(minimized)
+end
+
+function proxy:HideSessionWindow(window)
+    Store(window:GetSessionWindowIndex(), "shown", false)
+    window:Hide()
+end
+
+-- Unlike Blizzard's owner, every window we own can be hidden and moved: none of
+-- them is the primary window Edit Mode controls.
+function proxy:CanHideSessionWindow()
+    return true
+end
+
+function proxy:CanMoveOrResizeSessionWindow()
+    return true
+end
+
+function proxy:CanShowNewSecondarySessionWindow()
+    return true
+end
+
+function proxy:ShowNewSecondarySessionWindow()
+    Windows.Create()
+end
+
+function proxy:GetSessionType()
+    return DamageMeter:GetSessionType()
+end
+
+function proxy:GetSessionID()
+    return DamageMeter:GetSessionID()
+end
+
+local function BuildWindow(index)
+    -- The template is virtual XML, so it is not a Lua global and can only be
+    -- asked about by name. This is also where a patch that renamed it would
+    -- otherwise hard-error inside CreateFrame, during PLAYER_LOGIN, taking
+    -- every other module's Enable down with it.
+    if not C_XMLUtil.GetTemplateInfo("DamageMeterSessionWindowTemplate") then
+        ns.Print("cannot create a window: the damage meter window template is missing")
+        return nil
+    end
+
+    local saved = GetSaved()[index] or {}
+
+    local window = CreateFrame("FRAME", "DamageMeterCompanionWindow" .. index, DamageMeter, "DamageMeterSessionWindowTemplate")
+
+    window:SetDamageMeterOwner(Windows.proxyOwner, index)
+    window:SetDamageMeterType(saved.damageMeterType or Enum.DamageMeterType.DamageDone)
+    window:SetSession(saved.sessionType or DamageMeter:GetSessionType(), nil)
+    window:SetMovable(true)
+    window:SetResizable(true)
+
+    -- Same rule as Blizzard's SetupSessionWindow: a later window renders above
+    -- the ones before it.
+    window:SetFrameLevel(index)
+
+    -- Our own position rather than Blizzard's frame position cache, which is
+    -- keyed on names it owns.
+    window:SetUserPlaced(false)
+    window:ClearAllPoints()
+    if saved.left and saved.bottom then
+        window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", saved.left, saved.bottom)
+    else
+        -- Continues Blizzard's own series rather than restarting it, so our
+        -- first window does not land exactly on top of its window 2.
+        local offset = (index - 1) * 40
+        window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", offset, -offset)
+    end
+
+    window:SetSize(saved.width or 400, saved.height or 200)
+
+    ourWindows[index] = window
+
+    Windows.ApplyAppearance(window, index)
+
+    -- Every module installs its per-window hooks once, when it is enabled.
+    -- Blizzard's windows created later are covered because those modules also
+    -- hook SetupSessionWindow, which never fires for ours - so without this a
+    -- window added from the panel would have no drag hook, no hover, no
+    -- right-click menu and no idle transparency.
+    for _, callback in ipairs(creationCallbacks) do
+        callback(window, index)
+    end
+
+    if saved.locked then
+        window:SetLocked(true)
+    end
+
+    if saved.nonInteractive then
+        window:SetNonInteractive(true)
+    end
+
+    if type(saved.minimized) == "boolean" then
+        window:SetMinimized(saved.minimized)
+    end
+
+    window:SetShown(saved.shown ~= false)
+
+    -- Position is ours to remember, so record it whenever the player moves the
+    -- window. A linked window's anchor wins, and Snap clears the link's target
+    -- before restoring a position, so the two never disagree.
+    window:HookScript("OnDragStop", function()
+        if not ns.charDb.links[index] then
+            local left, bottom = window:GetRect()
+            Store(index, "left", left)
+            Store(index, "bottom", bottom)
+        end
+    end)
+
+    window:HookScript("OnSizeChanged", function()
+        Store(index, "width", window:GetWidth())
+        Store(index, "height", window:GetHeight())
+    end)
+
+    return window
+end
+
+function Windows.Create()
+    -- Blizzard's owner reuses a hidden slot rather than allocating; without the
+    -- same behaviour a hidden window is unreachable and its index is consumed
+    -- for the rest of the character's life.
+    for _, index in ipairs(Windows.SortedIndices(GetSaved())) do
+        local saved = GetSaved()[index]
+
+        -- Same guard as the Enable loop: a hand-edited entry at one of
+        -- Blizzard's indices must never be built as one of ours.
+        if Windows.IsOurs(index) and saved.shown == false then
+            -- Before the build, not after: BuildWindow reads this same flag to
+            -- decide whether the frame it makes starts shown.
+            saved.shown = true
+
+            local window = ourWindows[index]
+            if window then
+                window:Show()
+            elseif not BuildWindow(index) then
+                -- The template is gone; leave the slot hidden rather than
+                -- claim a window the player cannot see.
+                saved.shown = false
+                return nil
+            end
+
+            return index
+        end
+    end
+
+    local taken = {}
+    for index in pairs(GetSaved()) do
+        taken[index] = true
+    end
+    for index in pairs(ourWindows) do
+        taken[index] = true
+    end
+
+    local index = Windows.NextFreeIndex(taken)
+
+    -- No saved entry until the frame actually exists, or a failed build would
+    -- leave a window in the list that nothing can ever create.
+    if not BuildWindow(index) then
+        return nil
+    end
+
+    Store(index, "shown", true)
+
+    if #Windows.Indices() > Windows.SOFT_CAP and not Windows.warnedAboutCount then
+        Windows.warnedAboutCount = true
+        ns.Print("that is a lot of windows - each one is a scroll box refreshed on every combat event, and the settings page does not scroll, so rows past the sixth or so will be off the page")
+    end
+
+    return index
+end
+
+-- Removing one of Blizzard's three cannot destroy anything - the slot is part
+-- of its window data list for the life of the character - so it means the only
+-- thing removal can mean there: put the window away through Blizzard's own
+-- owner, which records it as hidden. The row stays in the panel as an empty
+-- slot, which is the truth about what Blizzard offers.
+function Windows.Remove(index)
+    if index == 1 then
+        return
+    end
+
+    if not Windows.IsOurs(index) then
+        for otherIndex, link in pairs(ns.charDb.links) do
+            if link.to == index then
+                ns.Snap.ClearLink(otherIndex)
+            end
+        end
+
+        ns.Snap.ClearLink(index)
+
+        local window = Windows.Get(index)
+        if window and DamageMeter:CanHideSessionWindow(window) then
+            DamageMeter:HideSessionWindow(window)
+        end
+
+        return
+    end
+
+    -- The links come first, and the order is load bearing: ClearLink puts the
+    -- dependent back on an absolute point read from its own GetRect, and a
+    -- window still anchored to a frame we had already unparented has no rect to
+    -- read - it would be left floating on a dead anchor, the exact state
+    -- ClearLink exists to prevent.
+    ns.charDb.links[index] = nil
+
+    -- A link pointing at a window that no longer exists would anchor nothing.
+    for otherIndex, link in pairs(ns.charDb.links) do
+        if link.to == index then
+            ns.Snap.ClearLink(otherIndex)
+        end
+    end
+
+    local window = ourWindows[index]
+
+    if window then
+        window:Hide()
+        window:SetParent(nil)
+        ourWindows[index] = nil
+    end
+
+    GetSaved()[index] = nil
+end
+
+function Windows.Enable()
+    for _, index in ipairs(Windows.SortedIndices(GetSaved())) do
+        -- A hand-edited saved file naming one of Blizzard's indices would
+        -- otherwise build a proxy-owned frame that Windows.Get never returns.
+        if Windows.IsOurs(index) then
+            BuildWindow(index)
+        end
+    end
+
+    -- A link naming a window that no longer exists - removed through the panel,
+    -- or lost to hand-edited saved variables - would anchor nothing and confuse
+    -- the panel. Drop those once, at login, before anything reads the link
+    -- table.
+    --
+    -- Only our own windows can vanish for good. Blizzard's 1-3 come back when
+    -- the player shows them again, and Snap's SetupSessionWindow hook re-applies
+    -- the link at that moment - pruning here would destroy it first.
+    for index, link in pairs(ns.charDb.links) do
+        local sourceGone = Windows.IsOurs(index) and not Windows.Get(index)
+        local targetGone = Windows.IsOurs(link.to) and not Windows.Get(link.to)
+
+        if sourceGone or targetGone then
+            ns.charDb.links[index] = nil
+        end
+    end
+
+    -- Edit Mode pushes appearance onto Blizzard's three; ours have to be told.
+    local appearanceMethods = {
+        "OnUseClassColorChanged", "OnBarHeightChanged", "OnTextScaleChanged",
+        "OnWindowAlphaChanged", "OnShowBarIconsChanged", "OnBarSpacingChanged",
+        "OnStyleChanged", "OnNumberDisplayTypeChanged", "OnBackgroundAlphaChanged",
+    }
+
+    for _, methodName in ipairs(appearanceMethods) do
+        ns.HookInstance(DamageMeter, methodName, Windows.ApplyAppearanceToOurs)
+    end
+end
+
+-- Blizzard's owner only knows its three windows; ours are shown and hidden
+-- through their saved entry. One call for both, so the panel, the per-window
+-- keybinds and the show-all keybind cannot disagree about how it is done.
 --
--- Addressed by index, not through ShowNewSecondarySessionWindow: that picks
--- the first free slot, so on a character that has never opened a second
--- window "show 3" would open 2.
-function Windows.Show(index)
-    if index == 1 or Windows.IsIndexShown(index) or InCombatLockdown() then
-        return false
+-- Showing one of Blizzard's deliberately does not go through
+-- ShowNewSecondarySessionWindow: that picks the first free slot, so on a
+-- character that has never opened a second window "show window 3" would open
+-- window 2. Addressing the index directly is what the caller asked for.
+function Windows.SetShown(index, shown)
+    if index == 1 then
+        return
     end
 
-    if not DamageMeter:CanShowNewSecondarySessionWindow() then
-        return false
+    if Windows.IsOurs(index) then
+        local window = ourWindows[index]
+        local saved = GetSaved()[index]
+
+        if window and saved then
+            saved.shown = shown
+            window:SetShown(shown)
+        end
+
+        return
     end
 
     local window = DamageMeter:GetSessionWindow(index)
+
+    if not shown then
+        if window and window:IsShown() then
+            DamageMeter:HideSessionWindow(window)
+        end
+
+        return
+    end
+
+    if window and window:IsShown() then
+        return
+    end
+
+    if not DamageMeter:CanShowNewSecondarySessionWindow() then
+        return
+    end
+
     local windowData = DamageMeter:GetWindowDataList()[index]
 
     if windowData then
@@ -104,10 +505,34 @@ function Windows.Show(index)
         -- lock to the value it already has is a no-op that runs the same save.
         DamageMeter:SetSessionWindowLocked(window or DamageMeter:GetSessionWindow(index), windowData.locked or false)
     else
+        -- CreateWindowData records the new window itself.
         DamageMeter:CreateWindowData(index)
     end
+end
 
-    return true
+function Windows.IsIndexShown(index)
+    local window = Windows.Get(index)
+    return window ~= nil and window:IsShown()
+end
+
+-- Every window that can be toggled: Blizzard's 2 and 3 as long as it has data
+-- for them, whether or not their frame exists yet, and every saved one of ours.
+function Windows.SecondaryIndices()
+    local present = {}
+
+    for index = 2, Windows.BLIZZARD_WINDOW_COUNT do
+        if DamageMeter:GetWindowDataList()[index] or DamageMeter:GetSessionWindow(index) then
+            present[index] = true
+        end
+    end
+
+    for index in pairs(GetSaved()) do
+        if Windows.IsOurs(index) then
+            present[index] = true
+        end
+    end
+
+    return Windows.SortedIndices(present)
 end
 
 -- Window 1's size is an Edit Mode setting, written by Blizzard's own resize
@@ -138,7 +563,8 @@ local function SetPrimarySize(width, height)
     return true
 end
 
--- Routes window 1 through Edit Mode (the only path that can move its size)
+-- Routes window 1 through Edit Mode (the only path that can move its size,
+-- per the constraint against calling SetSize on the primary window directly)
 -- and everything else through SetSize. Either path trips OnSizeChanged, so
 -- Snap.PushSize still propagates a matched size the same way a mouse resize
 -- would.
@@ -166,12 +592,6 @@ function Windows.SetSize(index, width, height)
     window:SetSize(width, height)
 
     return true
-end
-
-function Windows.Enable()
-    -- A link naming a slot that has no frame yet is left alone: Blizzard's
-    -- windows come back when the player shows them again, and Snap's
-    -- SetupSessionWindow hook re-applies the link at that moment.
 end
 
 ns.RegisterModule("Windows", Windows)

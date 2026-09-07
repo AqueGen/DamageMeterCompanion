@@ -1,40 +1,38 @@
 # DamageMeterCompanion
 
-A companion for Blizzard's built-in Damage Meter. It computes nothing itself - every number you see is still Blizzard's - and it never touches the meter's data or its windows' content. What it adds is layout and readability.
+A companion for Blizzard's built-in Damage Meter. Every number you see is still Blizzard's - this addon changes how you drive the meter and how its windows are laid out, and computes nothing.
 
 Retail only, patch 12.1. No libraries, no dependencies.
 
 ## What it adds
 
-**Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. The percentage is the one part that needs arithmetic, so it appears only when the values are readable, out of combat.
+**Hover instead of click.** Resting the cursor on a bar opens the spell breakdown; Shift-click pins it. In combat the row's identity is Secret to addons and hover has to wait, so use the click - that one is Blizzard's own and always works. Rows in the Deaths display are left alone - those open the death recap, and hovering one would fire it by accident.
 
-**Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Windows chain, a gap between them is configurable, and a window dropped near a screen edge lands flush with it.
+**A right-click menu on the bars.** Type, segment, lock, new window, hide window, reset, settings - all where the bar is, instead of two trips to the header dropdowns.
 
-**A window page.** `/dmc` lists Blizzard's three windows with their exact size in pixels, what is attached to what, the gap, a lock per window and Lock all / Unlock all. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
+**Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. The percentage is the one part that needs arithmetic, so it appears only out of combat.
 
-**Details on hover.** Resting the cursor on a bar shows that source's spells beside the window - icon, name, amount - in the addon's own panel, fed straight from the meter's data and painted through the same Secret-tolerant APIs as the numbers, so it works in combat. In a party the row is matched to a member by class; in a raid only your own row resolves. Blizzard's own breakdown, opened with a click, takes priority while it is open.
+**Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Any window can attach to any other, in a chain as long as you like. A window dropped near a screen edge lands flush with it.
 
-**Window actions in the type menu.** The header's type dropdown gains Lock, Hide, Reset and the addon's settings, appended through Blizzard's own menu extension point.
+**More than three windows.** Blizzard stops at three. This addon adds its own beyond that, with their own type, segment, lock, size and position, all saved per character.
+
+**A window page.** `/dmc` lists every window with its exact size in pixels, what is attached to what, the gap between them, a per-window bar height and text size override, a lock, and Lock all / Unlock all. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
 
 **Transparency and layer.** The meter dims when the mouse is away and comes back when it is over it, as a fraction of the Edit Mode transparency you already set. The frame layer is a dropdown, for when another addon covers the meter.
 
-**One place for the meter's settings.** The game's own Enable and Auto Reset switches are mirrored at the bottom of the page, marked as Blizzard's, and the meter's gear menu has an entry that opens the page.
-
-**Key bindings** to show or hide the meter, hide every extra window, and reset the data.
+**Key bindings** for showing and hiding the meter, toggling windows 2 and 3, hiding and restoring every extra window at once, and resetting the data.
 
 ## Commands
 
-- `/dmc` (or `/dmt`) - settings
-- `/dmc format`, `/dmc snap`, `/dmc hover` - toggle one feature
-- `/dmc diag` - what the addon sees, per window; useful when reporting a bug
+- `/dmc` (or `/dmt`, the old name's command) - settings, also reachable from the gear dropdown on any meter window
+- `/dmc hover`, `/dmc menu`, `/dmc format`, `/dmc snap` - toggle one feature
+- `/dmc diag` - what our hooks reached, per window; for reporting a bug
 - `/dmc probe` - what the API says about Secret values right now
 
-## What it deliberately does not do, and why
+## What it deliberately does not do
 
-On 12.x the meter's data is Secret to addons in combat, and anything an addon writes into Blizzard's meter windows taints them: their own refresh then logs a warning per row, in combat, until you reload. So this addon never opens Blizzard's own breakdown (its hover panel is a separate frame), does not switch a window's type or segment (the header dropdowns do, untainted), does not create windows beyond Blizzard's three, and does not show a hidden window (the gear menu's Show new window does). Each of those was built, seen to taint the meter, and removed. The reasoning with line references is in `docs/DECISIONS.md`.
-
-No parsing, no storage, no analysis, no skins, no report-to-chat. Blizzard's meter is the meter. If you want a meter of your own, use Details.
+No parsing, no storage, no analysis, no skins, no report-to-chat. Blizzard's meter is the meter. Details is the addon to use if you want a meter of your own.
 
 ## Development
 
-`busted tests` runs the pure-logic suite - number composition, snap geometry, the drop preview and the transparency rules. Everything frame-bound is verified in game against `docs/IN-GAME-CHECKLIST.md`.
+`busted tests` runs the pure-logic suite - snap geometry, the window registry, the drop preview and the transparency rules. Everything frame-bound is verified in game against `docs/IN-GAME-CHECKLIST.md`, because none of it can run headless. `docs/DECISIONS.md` records the engine facts the design rests on and the features that were deliberately left out.

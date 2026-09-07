@@ -2,8 +2,14 @@
     <Binding name="DAMAGEMETERCOMPANION_TOGGLE" category="DamageMeterCompanion">
         DamageMeterCompanion_ToggleMeter()
     </Binding>
-    <Binding name="DAMAGEMETERCOMPANION_HIDEALL" category="DamageMeterCompanion">
-        DamageMeterCompanion_HideAll()
+    <Binding name="DAMAGEMETERCOMPANION_WINDOW2" category="DamageMeterCompanion">
+        DamageMeterCompanion_ToggleWindow(2)
+    </Binding>
+    <Binding name="DAMAGEMETERCOMPANION_WINDOW3" category="DamageMeterCompanion">
+        DamageMeterCompanion_ToggleWindow(3)
+    </Binding>
+    <Binding name="DAMAGEMETERCOMPANION_TOGGLEALL" category="DamageMeterCompanion">
+        DamageMeterCompanion_ToggleAll()
     </Binding>
     <Binding name="DAMAGEMETERCOMPANION_RESET" category="DamageMeterCompanion">
         DamageMeterCompanion_ResetData()
