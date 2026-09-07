@@ -11,7 +11,13 @@ Windows.BLIZZARD_WINDOW_COUNT = 3
 -- box refreshed on every combat event, and let the player decide.
 Windows.SOFT_CAP = 10
 
+-- Truncated or hand-edited saved variables can hand us a link with no `to`,
+-- and every index path in this file runs through here first.
 function Windows.IsOurs(index)
+    if type(index) ~= "number" then
+        return false
+    end
+
     return index > Windows.BLIZZARD_WINDOW_COUNT
 end
 
@@ -42,10 +48,6 @@ end
 local ourWindows = {}
 
 function Windows.Get(index)
-    if type(index) ~= "number" then
-        return nil
-    end
-
     if Windows.IsOurs(index) then
         return ourWindows[index]
     end
@@ -316,16 +318,19 @@ function Windows.Create()
         -- Same guard as the Enable loop: a hand-edited entry at one of
         -- Blizzard's indices must never be built as one of ours.
         if Windows.IsOurs(index) and saved.shown == false then
+            -- Before the build, not after: BuildWindow reads this same flag to
+            -- decide whether the frame it makes starts shown.
+            saved.shown = true
+
             local window = ourWindows[index]
             if window then
                 window:Show()
             elseif not BuildWindow(index) then
                 -- The template is gone; leave the slot hidden rather than
                 -- claim a window the player cannot see.
+                saved.shown = false
                 return nil
             end
-
-            saved.shown = true
 
             return index
         end
