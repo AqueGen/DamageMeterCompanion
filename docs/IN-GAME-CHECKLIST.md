@@ -1,4 +1,4 @@
-# DamageMeterTweaks - in-game checklist
+# DamageMeterCompanion - in-game checklist
 
 Everything the headless build could not verify, in the order it makes sense to run. No agent performed any of these; none of them are claimed as passing.
 
@@ -73,7 +73,7 @@ These four came out of the Task 6 review and are the ones most likely to catch s
 
 ## 8. Key bindings
 
-- [ ] A DamageMeterTweaks category exists in Key Bindings with three bindings.
+- [ ] A DamageMeterCompanion category exists in Key Bindings with three bindings.
 - [ ] The toggle hides and shows the whole meter out of combat.
 - [ ] Pressed in combat it either works or prints a message. It never throws.
 - [ ] On a character that has never opened a secondary window, the "window 3" key opens window **3**, not window 2.

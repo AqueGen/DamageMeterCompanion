@@ -6,7 +6,7 @@ local Config = ns.Config
 local category
 
 local function AddCheckbox(variableKey, name, tooltip, onChange)
-    local setting = Settings.RegisterProxySetting(category, "DMT_" .. variableKey,
+    local setting = Settings.RegisterProxySetting(category, "DMC_" .. variableKey,
         Settings.VarType.Boolean, name, ns.defaults[variableKey],
         function() return ns.db[variableKey] end,
         function(value)
@@ -22,7 +22,7 @@ end
 -- labelFormat is a format string, applied to the value shown beside the slider.
 -- Without it a fractional slider prints the raw number, float noise and all.
 local function AddSlider(variableKey, name, tooltip, minimum, maximum, step, labelFormat, onChange)
-    local setting = Settings.RegisterProxySetting(category, "DMT_" .. variableKey,
+    local setting = Settings.RegisterProxySetting(category, "DMC_" .. variableKey,
         Settings.VarType.Number, name, ns.defaults[variableKey],
         function() return ns.db[variableKey] end,
         function(value)
@@ -85,7 +85,7 @@ local function BuildBehaviourOptions()
             ns.Presence.ApplyAlphaToAll()
         end)
 
-    local strataSetting = Settings.RegisterProxySetting(category, "DMT_strata",
+    local strataSetting = Settings.RegisterProxySetting(category, "DMC_strata",
         Settings.VarType.String, "Layer", ns.defaults.strata,
         -- Resolved, not raw: a hand-edited saved variable can hold a strata the
         -- meter refuses, and the dropdown must show what is actually applied.
@@ -109,7 +109,7 @@ function Config.Open()
 end
 
 function Config.Enable()
-    category = Settings.RegisterVerticalLayoutCategory("DamageMeterTweaks")
+    category = Settings.RegisterVerticalLayoutCategory("DamageMeterCompanion")
     BuildBehaviourOptions()
     Settings.RegisterAddOnCategory(category)
 
@@ -239,7 +239,7 @@ end
 -- list has no entry for. Ours are shown and hidden through their saved entry.
 local function ToggleShown(index)
     if not ns.Windows.IsOurs(index) then
-        DamageMeterTweaks_ToggleWindow(index)
+        DamageMeterCompanion_ToggleWindow(index)
         return
     end
 

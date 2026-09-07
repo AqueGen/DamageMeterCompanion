@@ -5,7 +5,7 @@ _G.Enum = {
     DamageMeterNumbers = { Minimal = 0, Compact = 1, Complete = 2 },
 }
 
-assert(loadfile("Format.lua"))("DamageMeterTweaks", ns)
+assert(loadfile("Format.lua"))("DamageMeterCompanion", ns)
 
 local Format = ns.Format
 

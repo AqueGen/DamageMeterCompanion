@@ -1,4 +1,4 @@
-# DamageMeterTweaks
+# DamageMeterCompanion
 
 Convenience for Blizzard's built-in Damage Meter, added from the outside. Every number you see is still Blizzard's - this addon changes how you drive the meter and how its windows are laid out, and computes nothing.
 

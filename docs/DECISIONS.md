@@ -1,4 +1,4 @@
-# DamageMeterTweaks - decisions taken while building it
+# DamageMeterCompanion - decisions taken while building it
 
 Written 2026-09-07, at the end of the first build. These are the forks where the plan turned out to be wrong, or where two defensible answers existed and one had to be picked. Each says what was decided and why, so a later change does not undo them by accident.
 

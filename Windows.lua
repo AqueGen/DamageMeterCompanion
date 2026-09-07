@@ -235,7 +235,7 @@ local function BuildWindow(index)
 
     local saved = GetSaved()[index] or {}
 
-    local window = CreateFrame("FRAME", "DamageMeterTweaksWindow" .. index, DamageMeter, "DamageMeterSessionWindowTemplate")
+    local window = CreateFrame("FRAME", "DamageMeterCompanionWindow" .. index, DamageMeter, "DamageMeterSessionWindowTemplate")
 
     window:SetDamageMeterOwner(Windows.proxyOwner, index)
     window:SetDamageMeterType(saved.damageMeterType or Enum.DamageMeterType.DamageDone)

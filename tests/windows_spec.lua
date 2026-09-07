@@ -3,7 +3,7 @@ local ns = {}
 ns.RegisterModule = function() end
 ns.Print = function() end
 
-assert(loadfile("Windows.lua"))("DamageMeterTweaks", ns)
+assert(loadfile("Windows.lua"))("DamageMeterCompanion", ns)
 
 local Windows = ns.Windows
 

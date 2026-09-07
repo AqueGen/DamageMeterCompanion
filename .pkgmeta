@@ -1,4 +1,4 @@
-package-as: DamageMeterTweaks
+package-as: DamageMeterCompanion
 
 enable-nolib-creation: no
 
@@ -16,6 +16,7 @@ ignore:
   - .github
   - .busted
   - .superpowers
+  - tools
   - CLAUDE.md
   - AGENTS.md
   - docs

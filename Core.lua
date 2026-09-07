@@ -36,7 +36,7 @@ function ns.RegisterModule(name, module)
 end
 
 function ns.Print(message)
-    print("|cff33ff99DamageMeterTweaks|r: " .. message)
+    print("|cff33ff99DamageMeterCompanion|r: " .. message)
 end
 
 function ns.IsAvailable()
@@ -110,27 +110,50 @@ local function ApplyDefaults(target, defaults)
     end
 end
 
-local function InitializeSavedVariables()
-    DamageMeterTweaksDB = DamageMeterTweaksDB or {}
-    DamageMeterTweaksCharDB = DamageMeterTweaksCharDB or {}
+-- The addon shipped nothing under its old name, but it did run under it here,
+-- so a player who used it before the rename would otherwise lose every window,
+-- link and size. Adopt the old tables once, then drop the old ones so the
+-- migration cannot run twice.
+--
+-- Both old variables are still declared in the TOC, because a SavedVariable
+-- that is not declared is not loaded. Once a release has shipped under the new
+-- name for a while, both declarations and this function come out.
+local function AdoptOldSavedVariables()
+    if DamageMeterCompanionDB == nil and DamageMeterTweaksDB ~= nil then
+        DamageMeterCompanionDB = DamageMeterTweaksDB
+    end
 
-    ApplyDefaults(DamageMeterTweaksDB, ns.defaults)
-    ApplyDefaults(DamageMeterTweaksCharDB, ns.charDefaults)
+    if DamageMeterCompanionCharDB == nil and DamageMeterTweaksCharDB ~= nil then
+        DamageMeterCompanionCharDB = DamageMeterTweaksCharDB
+    end
+
+    DamageMeterTweaksDB = nil
+    DamageMeterTweaksCharDB = nil
+end
+
+local function InitializeSavedVariables()
+    AdoptOldSavedVariables()
+
+    DamageMeterCompanionDB = DamageMeterCompanionDB or {}
+    DamageMeterCompanionCharDB = DamageMeterCompanionCharDB or {}
+
+    ApplyDefaults(DamageMeterCompanionDB, ns.defaults)
+    ApplyDefaults(DamageMeterCompanionCharDB, ns.charDefaults)
 
     -- The snap distance default moved from 15 to 50 after the first version
     -- shipped. ApplyDefaults only fills nils, so a profile that already carries
     -- the old default would never see the new one. Move it once, and only when
     -- it is still exactly the old default - a value the player chose is theirs.
-    if not DamageMeterTweaksDB.snapThresholdDefaultMoved then
-        DamageMeterTweaksDB.snapThresholdDefaultMoved = true
+    if not DamageMeterCompanionDB.snapThresholdDefaultMoved then
+        DamageMeterCompanionDB.snapThresholdDefaultMoved = true
 
-        if DamageMeterTweaksDB.snapThreshold == 15 then
-            DamageMeterTweaksDB.snapThreshold = ns.defaults.snapThreshold
+        if DamageMeterCompanionDB.snapThreshold == 15 then
+            DamageMeterCompanionDB.snapThreshold = ns.defaults.snapThreshold
         end
     end
 
-    ns.db = DamageMeterTweaksDB
-    ns.charDb = DamageMeterTweaksCharDB
+    ns.db = DamageMeterCompanionDB
+    ns.charDb = DamageMeterCompanionCharDB
 end
 
 -- Prints what the design assumes about secrecy and CVar access so the
@@ -230,14 +253,14 @@ local function HandleSlashCommand(input)
     end
 end
 
-BINDING_NAME_DAMAGEMETERTWEAKS_TOGGLE = "Show or hide the damage meter"
-BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW2 = "Toggle meter window 2"
-BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW3 = "Toggle meter window 3"
+BINDING_NAME_DAMAGEMETERCOMPANION_TOGGLE = "Show or hide the damage meter"
+BINDING_NAME_DAMAGEMETERCOMPANION_WINDOW2 = "Toggle meter window 2"
+BINDING_NAME_DAMAGEMETERCOMPANION_WINDOW3 = "Toggle meter window 3"
 
 -- The primary window cannot be hidden (CanHideSessionWindow is false for it),
 -- so the only way to put the whole meter away is the CVar the settings
 -- checkbox uses.
-function DamageMeterTweaks_ToggleMeter()
+function DamageMeterCompanion_ToggleMeter()
     local enabled = C_CVar.GetCVarBool("damageMeterEnabled")
 
     -- SetCVar signals a refusal by returning false rather than by throwing, so
@@ -256,7 +279,7 @@ end
 -- the first free slot, so on a character that has never opened a second window
 -- the "window 3" key would open window 2. Addressing the index directly is
 -- what the binding's own label promises.
-function DamageMeterTweaks_ToggleWindow(index)
+function DamageMeterCompanion_ToggleWindow(index)
     if not ns.IsAvailable() or index == 1 then
         return
     end
@@ -303,6 +326,9 @@ bootstrap:SetScript("OnEvent", function()
         end
     end
 
-    SLASH_DAMAGEMETERTWEAKS1 = "/dmt"
-    SlashCmdList["DAMAGEMETERTWEAKS"] = HandleSlashCommand
+    -- /dmt stays as the second alias: it is what the addon answered to before
+    -- the rename, and muscle memory outlives a name change.
+    SLASH_DAMAGEMETERCOMPANION1 = "/dmc"
+    SLASH_DAMAGEMETERCOMPANION2 = "/dmt"
+    SlashCmdList["DAMAGEMETERCOMPANION"] = HandleSlashCommand
 end)

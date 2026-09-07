@@ -2,7 +2,7 @@ local ns = {}
 
 ns.RegisterModule = function() end
 
-assert(loadfile("Preview.lua"))("DamageMeterTweaks", ns)
+assert(loadfile("Preview.lua"))("DamageMeterCompanion", ns)
 
 local Preview = ns.Preview
 

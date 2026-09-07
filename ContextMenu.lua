@@ -186,8 +186,26 @@ local function OnInitEntry(sessionWindow, frame, elementData)
     end)
 end
 
+-- The gear dropdown on every meter window is tagged, which is Blizzard's own
+-- extension point: the callback appends to their menu without replacing their
+-- generator, and it reaches windows Blizzard has not built yet. It also reaches
+-- ours, because our windows carry the same mixin and so the same tag.
+local function AddSettingsToWindowDropdown()
+    if not Menu or not Menu.ModifyMenu then
+        return
+    end
+
+    Menu.ModifyMenu("MENU_DAMAGE_METER_WINDOW_SETTINGS", function(_, rootDescription)
+        rootDescription:CreateDivider()
+        rootDescription:CreateButton("DamageMeterCompanion settings", function()
+            ns.Config.Open()
+        end)
+    end)
+end
+
 function ContextMenu.Enable()
     VerifyTypeCoverage()
+    AddSettingsToWindowDropdown()
 
     -- Mixin hook for windows created later, instance hooks for the ones that
     -- already exist and carry their own copy of InitEntry.

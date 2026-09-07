@@ -6,7 +6,7 @@ local ns = {}
 ns.RegisterModule = function() end
 ns.defaults = { strata = "MEDIUM" }
 
-assert(loadfile("Presence.lua"))("DamageMeterTweaks", ns)
+assert(loadfile("Presence.lua"))("DamageMeterCompanion", ns)
 
 local Presence = ns.Presence
 
