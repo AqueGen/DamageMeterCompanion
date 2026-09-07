@@ -32,7 +32,8 @@ If `SetCVar` is refused in combat, the toggle binding prints a message instead o
 - [ ] Moving the cursor from the bar into the breakdown keeps it open.
 - [ ] Left-clicking a bar opens the breakdown (Blizzard's own click), Shift-click pins it; a pinned one survives the cursor leaving and any later hover.
 - [ ] In combat, hover does nothing and clicking still opens the breakdown, with no error in BugSack.
-- [ ] After the pull ends, hover works again within a moment without a reload. A breakdown that was open during the pull closes once at that point - expected.
+- [ ] After the pull ends, hover comes back on its own once the meter has refreshed with readable rows - note how long that takes; `/dmc probe` says whether a fetch made right now is still Secret.
+- [ ] An unpinned breakdown closes as combat starts - expected.
 - [ ] Hovering a row in the Deaths display does **not** open the death recap. Clicking it still does.
 - [ ] `/dmc hover` turns hover off and clicking still works.
 

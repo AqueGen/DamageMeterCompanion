@@ -58,7 +58,7 @@ local function OnEnter(window, frame)
     -- SecretArguments = "AllowedWhenUntainted": a Secret GUID from our stack
     -- is a hard error, not a warning. The GUID is Secret while combat
     -- restrictions are on and stays Secret in the data Blizzard fetched then,
-    -- until RefreshAfterCombat below fetches again. Hover simply waits.
+    -- until Blizzard's own next fetch out of combat. Hover simply waits.
     if issecretvalue(elementData.sourceGUID) or issecretvalue(elementData.sourceCreatureID) then
         return
     end
@@ -159,34 +159,14 @@ function Entries.Sweep()
     end)
 end
 
--- Blizzard's window re-fetches only on the meter's own events, which arrive in
--- combat, so after a pull its rows still carry the Secret GUIDs fetched then
--- and hover would stay dead until the next pull refreshed them. One fetch of
--- our own once the restrictions lift hands back plain values; out of combat
--- C_DamageMeter returns them (SecretWhenInCombat), and the only comparisons
--- Refresh makes are of values that are Secret only while restricted.
---
--- Except through an open breakdown: it holds the Secret GUID it was opened
--- with, and Refresh would compare a fresh row against it. Closing it first is
--- the one thing that is always safe.
-function Entries.RefreshAfterCombat()
-    if InCombatLockdown() then
-        return
-    end
-
-    ns.Windows.ForEach(function(window)
-        if not window:IsShown() then
-            return
-        end
-
-        local sourceWindow = window:GetSourceWindow()
-        if sourceWindow:IsShown() and issecretvalue(sourceWindow.sourceGUID) then
-            window:HideSourceWindow()
-        end
-
-        pcall(window.Refresh, window, ScrollBoxConstants.RetainScrollPosition)
-    end)
-end
+-- Deliberately no Refresh of our own after combat. It was tried: the fetch
+-- one frame after PLAYER_REGEN_ENABLED still returned Secret values - the
+-- session is closed on the server, not the client, and Details reads
+-- issecretvalue as its "still in combat" signal for that reason - and worse,
+-- Blizzard's InitEntry ran inside our call, so the OnClick closures it
+-- installed were tainted and their own click logged warnings out of combat
+-- until their next refresh replaced them. Hover waits for Blizzard's own
+-- fetch to hand back plain rows.
 
 -- A breakdown our hover opened holds fields written from our stack, and
 -- Blizzard's refresh compares one of them - sourceGUID - against every row
@@ -209,17 +189,8 @@ function Entries.Enable()
     ns.OnSweep(Entries.Sweep)
 
     local driver = CreateFrame("Frame")
-    driver:RegisterEvent("PLAYER_REGEN_ENABLED")
     driver:RegisterEvent("PLAYER_REGEN_DISABLED")
-    driver:SetScript("OnEvent", function(_, event)
-        if event == "PLAYER_REGEN_DISABLED" then
-            Entries.CloseHoverBreakdowns()
-            return
-        end
-
-        -- Next frame, not this one: the event fires as the lockdown lifts.
-        C_Timer.After(0, Entries.RefreshAfterCombat)
-    end)
+    driver:SetScript("OnEvent", Entries.CloseHoverBreakdowns)
 end
 
 ns.RegisterModule("Entries", Entries)

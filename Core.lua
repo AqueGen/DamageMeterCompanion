@@ -192,6 +192,22 @@ function ns.Probe()
             tostring(issecretvalue(elementData.deathRecapID))))
     end
 
+    -- The rows above hold whatever Blizzard fetched last, which was probably
+    -- during combat. This is a fetch made right now, and it is the one that
+    -- decides whether anything can become readable again after a pull.
+    local ok, session = pcall(C_DamageMeter.GetCombatSessionFromType,
+        Enum.DamageMeterSessionType.Current, Enum.DamageMeterType.DamageDone)
+    local fresh = ok and session and session.combatSources and session.combatSources[1]
+
+    if not fresh then
+        ns.Print("fresh fetch: no current session data" .. (ok and "" or (" - " .. tostring(session))))
+    else
+        ns.Print(("fresh fetch right now: sourceGUID secret %s, totalAmount secret %s, name secret %s"):format(
+            tostring(issecretvalue(fresh.sourceGUID)),
+            tostring(issecretvalue(fresh.totalAmount)),
+            tostring(issecretvalue(fresh.name))))
+    end
+
     local current = C_CVar.GetCVar("damageMeterEnabled")
     local ok, err = pcall(C_CVar.SetCVar, "damageMeterEnabled", current)
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
