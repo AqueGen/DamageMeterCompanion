@@ -394,4 +394,48 @@ function Windows.Enable()
     end
 end
 
+-- Window 1's size is an Edit Mode setting, written by Blizzard's own resize
+-- handle with exactly this call (EditModeSystemTemplates.lua:3438). Our stack
+-- is tainted, so a refusal is reported rather than allowed to error.
+local function SetPrimarySize(width, height)
+    local ok, err = pcall(function()
+        EditModeManagerFrame:OnSystemSettingChange(DamageMeter, Enum.EditModeDamageMeterSetting.FrameWidth, width)
+        EditModeManagerFrame:OnSystemSettingChange(DamageMeter, Enum.EditModeDamageMeterSetting.FrameHeight, height)
+    end)
+
+    if not ok then
+        ns.Print("Edit Mode would not accept that size right now: " .. tostring(err))
+    end
+
+    return ok
+end
+
+-- Routes window 1 through Edit Mode (the only path that can move its size,
+-- per the constraint against calling SetSize on the primary window directly)
+-- and everything else through SetSize. Either path trips OnSizeChanged, so
+-- Snap.PushSize still propagates a matched size the same way a mouse resize
+-- would.
+function Windows.SetSize(index, width, height)
+    local window = Windows.Get(index)
+
+    if not window then
+        return false
+    end
+
+    width = ns.Snap.Clamp(width, ns.Snap.MIN_WIDTH, ns.Snap.MAX_WIDTH)
+    height = ns.Snap.Clamp(height, ns.Snap.MIN_HEIGHT, ns.Snap.MAX_HEIGHT)
+
+    if index == 1 then
+        return SetPrimarySize(width, height)
+    end
+
+    if not window:CanMoveOrResize() then
+        return false
+    end
+
+    window:SetSize(width, height)
+
+    return true
+end
+
 ns.RegisterModule("Windows", Windows)

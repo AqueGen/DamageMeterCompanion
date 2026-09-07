@@ -139,18 +139,17 @@ local function CreateSizeBox(row, index, dimension)
     end)
 
     box:SetScript("OnEnterPressed", function(self)
-        local window = DamageMeter:GetSessionWindow(index)
+        local window = ns.Windows.Get(index)
         local value = tonumber(self:GetText())
 
-        -- The window-level check, not the owner-level one: it is the only
-        -- variant that consults the lock, and every other resize path in this
-        -- addon already honours it.
-        if window and value and window:CanMoveOrResize() then
-            if dimension == "width" then
-                window:SetWidth(ns.Snap.Clamp(value, ns.Snap.MIN_WIDTH, ns.Snap.MAX_WIDTH))
-            else
-                window:SetHeight(ns.Snap.Clamp(value, ns.Snap.MIN_HEIGHT, ns.Snap.MAX_HEIGHT))
-            end
+        if window and value then
+            local width = (dimension == "width") and value or window:GetWidth()
+            local height = (dimension == "height") and value or window:GetHeight()
+
+            -- Windows.SetSize does the lock check and, for the primary window,
+            -- the Edit Mode routing - so this box does not need to know which
+            -- kind of window it is editing.
+            ns.Windows.SetSize(index, width, height)
         end
 
         self:ClearFocus()
@@ -182,17 +181,17 @@ function RefreshWindowPanel()
             row.Size:SetText("-")
         end
 
-        -- Window 1 never gets the size boxes: Edit Mode owns its size, which is
-        -- what the note says. A locked window keeps them, greyed out, so the
-        -- panel says why the edit is refused instead of swallowing it.
-        local resizable = shown and window:CanMoveOrResize()
+        -- Window 1 gets the size boxes too: Windows.SetSize routes it through
+        -- Edit Mode. A locked window keeps them, greyed out, so the panel says
+        -- why the edit is refused instead of swallowing it.
+        local resizable = shown and (index == 1 or window:CanMoveOrResize())
 
-        row.Width:SetShown(not isPrimary)
+        row.Width:SetShown(true)
         row.Width:SetEnabled(resizable)
-        row.Height:SetShown(not isPrimary)
+        row.Height:SetShown(true)
         row.Height:SetEnabled(resizable)
 
-        if shown and not isPrimary then
+        if shown then
             -- Never overwrite a box the user is typing in; the throttled
             -- refresh below runs while the page is open.
             if not row.Width:HasFocus() then
@@ -207,7 +206,7 @@ function RefreshWindowPanel()
             row.Height:SetText("")
         end
 
-        row.Note:SetText(isPrimary and "Size and position are controlled by Edit Mode." or "")
+        row.Note:SetText(isPrimary and "Size is stored in the Edit Mode layout." or "")
         row.Link:SetText(link and ("attached to window " .. link.to) or "not attached")
         row.MatchWidth:SetChecked(link and link.matchWidth or false)
         row.MatchWidth:SetEnabled(link ~= nil and not isPrimary)
