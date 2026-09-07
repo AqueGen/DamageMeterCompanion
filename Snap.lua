@@ -343,15 +343,37 @@ function Snap.AddMenuEntries(rootDescription, sessionWindow)
 end
 
 function Snap.Enable()
+    local function OnDragStart(window, index)
+        if not ns.db.snap or not window:CanMoveOrResize() then
+            return
+        end
+
+        -- Preview owns the overlay's OnUpdate; we only hand it the per-tick
+        -- poll. Driving this from the window's own OnUpdate instead would
+        -- fight DamageMeterSessionWindowMixin:UpdateOnUpdateState, which sets
+        -- and clears that script for its own mouse-over tracking.
+        ns.Preview.Track(function()
+            local rect = RectOf(window, index)
+            local candidate = Snap.FindSnap(rect, CollectCandidates(index), ns.db.snapThreshold)
+
+            if candidate then
+                ns.Preview.Show(rect, RectOf(ns.Windows.Get(candidate.index), candidate.index), candidate)
+            else
+                ns.Preview.Hide()
+            end
+        end)
+    end
+
     local function OnDragStop(window)
+        local index = window:GetSessionWindowIndex()
+        ns.Preview.StopTracking()
+
         -- Blizzard's OnDragStart refuses to move a locked window but their
         -- OnDragStop runs regardless, so the lock has to be checked here or a
         -- stray drag on a locked window would link it.
         if not window:CanMoveOrResize() then
             return
         end
-
-        local index = window:GetSessionWindowIndex()
 
         -- Dropping the old link happens even with snapping switched off,
         -- otherwise turning the feature off would freeze existing links in
@@ -388,6 +410,7 @@ function Snap.Enable()
     -- script hook is correct under either.
     local function AttachWindow(window, index)
         window:HookScript("OnDragStop", OnDragStop)
+        window:HookScript("OnDragStart", function() OnDragStart(window, index) end)
 
         window.dmtSizeHooked = true
         window:HookScript("OnSizeChanged", function()
@@ -419,6 +442,7 @@ function Snap.Enable()
             end)
 
             window:HookScript("OnDragStop", OnDragStop)
+            window:HookScript("OnDragStart", function() OnDragStart(window, windowDataIndex) end)
         end
 
         Snap.ApplyAll()
