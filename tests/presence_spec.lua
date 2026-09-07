@@ -1,8 +1,10 @@
 local ns = {}
 
 -- Presence.lua registers itself at file scope; the real one lives in Core.lua,
--- which these tests do not load.
+-- which these tests do not load. ResolveStrata falls back to the default, so
+-- the defaults table has to be present too.
 ns.RegisterModule = function() end
+ns.defaults = { strata = "MEDIUM" }
 
 assert(loadfile("Presence.lua"))("DamageMeterTweaks", ns)
 
@@ -36,5 +38,19 @@ describe("Presence.NextStrataUp", function()
 
     it("falls back to HIGH for an unknown strata", function()
         assert.are.equal("HIGH", Presence.NextStrataUp("NONSENSE"))
+    end)
+end)
+
+describe("Presence.ResolveStrata", function()
+    it("passes a real strata through", function()
+        assert.are.equal("DIALOG", Presence.ResolveStrata("DIALOG"))
+    end)
+
+    it("falls back to the default for an unknown strata", function()
+        assert.are.equal("MEDIUM", Presence.ResolveStrata("NONSENSE"))
+    end)
+
+    it("falls back to the default for a nil strata", function()
+        assert.are.equal("MEDIUM", Presence.ResolveStrata(nil))
     end)
 end)

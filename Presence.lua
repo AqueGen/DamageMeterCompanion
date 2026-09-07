@@ -48,8 +48,21 @@ function Presence.NextStrataUp(strata)
     return "HIGH"
 end
 
+-- SetFrameStrata throws on a name it does not know, and the only way to set
+-- this before Task 9's dropdown exists is hand-editing the saved variable. An
+-- unrecognised value would then error on every reload, so resolve it first.
+function Presence.ResolveStrata(strata)
+    for _, name in ipairs(Presence.STRATA_ORDER) do
+        if name == strata then
+            return strata
+        end
+    end
+
+    return ns.defaults.strata
+end
+
 function Presence.ApplyStrata()
-    local strata = ns.db.strata
+    local strata = Presence.ResolveStrata(ns.db.strata)
 
     DamageMeter:SetFrameStrata(strata)
 
