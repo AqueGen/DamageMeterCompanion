@@ -398,6 +398,8 @@ end
 -- handle with exactly this call (EditModeSystemTemplates.lua:3438). Our stack
 -- is tainted, so a refusal is reported rather than allowed to error.
 local function SetPrimarySize(width, height)
+    local window = Windows.Get(1)
+
     local ok, err = pcall(function()
         EditModeManagerFrame:OnSystemSettingChange(DamageMeter, Enum.EditModeDamageMeterSetting.FrameWidth, width)
         EditModeManagerFrame:OnSystemSettingChange(DamageMeter, Enum.EditModeDamageMeterSetting.FrameHeight, height)
@@ -405,9 +407,19 @@ local function SetPrimarySize(width, height)
 
     if not ok then
         ns.Print("Edit Mode would not accept that size right now: " .. tostring(err))
+        return false
     end
 
-    return ok
+    -- OnSystemSettingChange returns silently when the damage meter is not in
+    -- the active layout, so a call that threw nothing still may have done
+    -- nothing. The frame's own size is the only honest answer.
+    if window and (math.floor(window:GetWidth() + 0.5) ~= math.floor(width + 0.5)
+        or math.floor(window:GetHeight() + 0.5) ~= math.floor(height + 0.5)) then
+        ns.Print("Edit Mode did not take that size - the damage meter may not be in the active layout")
+        return false
+    end
+
+    return true
 end
 
 -- Routes window 1 through Edit Mode (the only path that can move its size,
@@ -426,6 +438,9 @@ function Windows.SetSize(index, width, height)
     height = ns.Snap.Clamp(height, ns.Snap.MIN_HEIGHT, ns.Snap.MAX_HEIGHT)
 
     if index == 1 then
+        -- No lock check for the primary window: Blizzard's owner refuses it for
+        -- move and resize regardless of lock state, so it can never be locked in
+        -- the first place, and Edit Mode is the only thing that sizes it.
         return SetPrimarySize(width, height)
     end
 

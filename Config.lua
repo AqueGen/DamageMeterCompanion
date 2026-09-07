@@ -166,7 +166,7 @@ function RefreshWindowPanel()
 
     for index = 1, 3 do
         local row = windowPanel.rows[index]
-        local window = DamageMeter:GetSessionWindow(index)
+        local window = ns.Windows.Get(index)
         local isPrimary = index == 1
         local link = ns.charDb.links[index]
         local shown = window ~= nil and window:IsShown()
