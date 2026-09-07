@@ -78,6 +78,36 @@ These four came out of the Task 6 review and are the ones most likely to catch s
 - [ ] Pressed in combat it either works or prints a message. It never throws.
 - [ ] On a character that has never opened a secondary window, the "window 3" key opens window **3**, not window 2.
 
+## 8b. Extra windows and chaining
+
+Everything in this section is new and none of it has ever run.
+
+- [ ] `/dmt` → Windows. On a fresh character the page lists three rows, and ticking row 2's Shown box creates window 2.
+- [ ] **Add window** creates a fourth. It draws bars, and its own gear dropdown offers type, segment, lock, uninteractable, minimize and hide, each of which works.
+- [ ] The new window's appearance matches Blizzard's. Change Bar Height in Edit Mode and confirm the new window changes too.
+- [ ] Hover, the right-click menu, the idle transparency and the snap preview all work on the new window, not just on Blizzard's.
+- [ ] Add two more, chain them: 4 under 3, 5 under 4, 6 under 5. Move window 1 in Edit Mode and confirm the whole chain follows.
+- [ ] `/reload`. Every window, its size, its position and every link survives.
+- [ ] Remove the middle window of a chain. The one that pointed at it comes free and stays where it was, including after a reload.
+- [ ] Hide one of our windows, then click Add window. The hidden one comes back rather than a new one being created - that is deliberate and mirrors Blizzard.
+- [ ] Give a window a bar height override of 20 and a text size of 80. Both take effect on that window only. Clearing the box returns it to following Edit Mode.
+- [ ] Type 0 into a bar height override. It is refused and the box comes back blank.
+
+## 8c. Snap preview and gap
+
+- [ ] Dragging a window near another shows a green bar on both edges that will meet, and nothing when out of range.
+- [ ] The bars vanish on release, and turning snapping off in the panel stops them appearing at all.
+- [ ] The bars appear on the correct edges for all four directions - below, above, left and right.
+- [ ] Set a gap of 6 on a linked window. The pair separates by six pixels and the value survives a reload.
+
+## 8d. Sizes
+
+- [ ] Type a width for window 1. It resizes, and the value survives a reload.
+- [ ] An out-of-range width comes back clamped in the box.
+- [ ] A size Edit Mode refuses prints a message rather than silently reverting.
+- [ ] Lock a window from its gear dropdown. Its size boxes grey out and a typed size is refused.
+- [ ] **After typing a size for window 1, open Edit Mode and press Save.** This is the one place the addon writes into Blizzard's Edit Mode layout from a tainted stack. Watch for "Interface action failed because of an addon" or a layout that fails to persist. If either happens, tell me - the fix is to drop the panel's control over window 1's size and leave it to Edit Mode's own slider.
+
 ## 9. Settings panel
 
 - [ ] `/dmt` opens it with the behaviour options and a Windows subcategory.
