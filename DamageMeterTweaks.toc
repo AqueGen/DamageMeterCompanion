@@ -12,5 +12,6 @@ Format.lua
 Hover.lua
 ContextMenu.lua
 Snap.lua
+Preview.lua
 Presence.lua
 Config.lua
