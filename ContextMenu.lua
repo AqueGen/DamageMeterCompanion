@@ -166,23 +166,16 @@ local function AddWindowEntries(rootDescription, sessionWindow)
     end
 end
 
--- Replaces the OnClick Blizzard installed in InitEntry immediately above; the
--- left button keeps its behaviour, the right button gains the menu.
-local function OnInitEntry(sessionWindow, frame, elementData)
-    frame:SetScript("OnClick", function(_, mouseButtonName)
-        if mouseButtonName == "RightButton" and ns.db.menu then
-            MenuUtil.CreateContextMenu(frame, function(_, rootDescription)
-                AddTypeEntries(rootDescription, sessionWindow)
-                rootDescription:CreateDivider()
-                AddSessionEntries(rootDescription, sessionWindow)
-                rootDescription:CreateDivider()
-                AddWindowEntries(rootDescription, sessionWindow)
-            end)
-            return
-        end
-
-        local sticky = true
-        sessionWindow:ShowSourceWindow(elementData, sticky)
+-- Opens the bar menu at `frame`. Called from Entries on a right-click; the
+-- row's data is read there, at click time, and the menu builders take the
+-- window.
+function ContextMenu.Open(frame, sessionWindow)
+    MenuUtil.CreateContextMenu(frame, function(_, rootDescription)
+        AddTypeEntries(rootDescription, sessionWindow)
+        rootDescription:CreateDivider()
+        AddSessionEntries(rootDescription, sessionWindow)
+        rootDescription:CreateDivider()
+        AddWindowEntries(rootDescription, sessionWindow)
     end)
 end
 
@@ -205,28 +198,7 @@ end
 
 function ContextMenu.Enable()
     VerifyTypeCoverage()
-
-    -- Deliberately before the entryHooks bail: the entry in the meter's own
-    -- gear dropdown does not touch an entry frame and has nothing to do with
-    -- the taint question.
     AddSettingsToWindowDropdown()
-
-    if not ns.db.entryHooks then
-        return
-    end
-
-    -- Mixin hook for windows created later, instance hooks for the ones that
-    -- already exist and carry their own copy of InitEntry.
-    hooksecurefunc(DamageMeterSessionWindowMixin, "InitEntry", OnInitEntry)
-    ns.Windows.ForEach(function(window)
-        ns.HookInstance(window, "InitEntry", OnInitEntry)
-    end)
-
-    -- Our own windows also carry their own copy of InitEntry, and the mixin
-    -- hook above cannot reach them either.
-    ns.Windows.OnCreated(function(window)
-        ns.HookInstance(window, "InitEntry", OnInitEntry)
-    end)
 end
 
 ns.RegisterModule("ContextMenu", ContextMenu)

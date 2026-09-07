@@ -23,7 +23,7 @@ If `SetCVar` is refused in combat, the toggle binding prints a message instead o
 - [ ] Out of combat, after leaving combat, Complete mode shows the percentage as well: `56.72M (40.6K) 18.0%`.
 - [ ] The spell breakdown reads the full form regardless of that setting - it always forces Complete.
 - [ ] Turning Readable numbers off puts Blizzard's own text back within a moment; turning it on again re-formats.
-- [ ] No `attempt to compare` warnings in BugSack with `/dmc entryhooks` off, in or out of combat.
+- [ ] No `attempt to compare` warnings in BugSack after a full pull.
 
 ## 4. Hover
 
@@ -33,6 +33,15 @@ If `SetCVar` is refused in combat, the toggle binding prints a message instead o
 - [ ] Left-clicking a bar pins the breakdown; it survives the cursor leaving and any later hover.
 - [ ] Hovering a row in the Deaths display does **not** open the death recap. Clicking it still does.
 - [ ] `/dmc hover` turns hover off and clicking still works.
+
+## 4b. Taint - the one that decides what ships
+
+Nothing of ours hooks Blizzard's render path any more, so the remaining question is whether the actions we start from tainted code warn in combat.
+
+- [ ] In combat: hover a bar so the breakdown opens. BugSack stays empty.
+- [ ] In combat: right-click a bar and switch type. BugSack stays empty.
+- [ ] In combat: left-click a bar to pin. BugSack stays empty.
+If any of these warns, that action goes out-of-combat-only and the design note in DECISIONS.md gets the answer.
 
 ## 5. Right-click menu
 

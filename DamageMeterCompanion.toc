@@ -16,8 +16,8 @@
 Core.lua
 Windows.lua
 Format.lua
-Hover.lua
 ContextMenu.lua
+Entries.lua
 Snap.lua
 Preview.lua
 Presence.lua

@@ -102,30 +102,33 @@ function Presence.ApplyStrata()
 end
 
 function Presence.Enable()
-    -- OnEnter sets the MouseOver reason; the window's own OnUpdate clears it
-    -- once the mouse is off both the window and its resize button. One hook
-    -- gives us both edges without an OnUpdate of our own.
-    local function OnSetOnUpdateReason(window, reason, enabled)
-        if reason ~= "MouseOver" then
-            return
-        end
+    -- Polled from the shared sweep rather than hooked off SetOnUpdateReason.
+    -- That hook wrapped a body which installs the window's own OnUpdate
+    -- script, and a script installed inside a tainted call is a tainted
+    -- script for the rest of the session - the same class of problem that
+    -- made the InitEntry hooks log warnings. Five polls a second of
+    -- IsMouseOver on a handful of windows is nothing, and the alpha only
+    -- changes on an edge.
+    ns.OnSweep(function()
+        ns.Windows.ForEach(function(window)
+            if not window:IsShown() then
+                return
+            end
 
-        hovered[window] = enabled and true or nil
-        Presence.ApplyAlpha(window)
-    end
+            local resizeButton = window:GetResizeButton()
+            local isHovered = window:IsMouseOver() or (resizeButton and resizeButton:IsMouseOver()) or false
 
-    -- Mixin hook for windows created later, instance hooks for the ones that
-    -- already exist and carry their own copy of SetOnUpdateReason.
-    hooksecurefunc(DamageMeterSessionWindowMixin, "SetOnUpdateReason", OnSetOnUpdateReason)
-    ns.Windows.ForEach(function(window)
-        ns.HookInstance(window, "SetOnUpdateReason", OnSetOnUpdateReason)
+            if (hovered[window] or false) ~= isHovered then
+                hovered[window] = isHovered or nil
+                Presence.ApplyAlpha(window)
+            end
+        end)
     end)
 
     -- SetupSessionWindow never fires for our own windows, so the idle alpha
     -- and the strata have to be applied to each one as it is built. A new
     -- window carries its source window pinned to HIGH just like Blizzard's do.
     ns.Windows.OnCreated(function(window)
-        ns.HookInstance(window, "SetOnUpdateReason", OnSetOnUpdateReason)
         Presence.ApplyAlpha(window)
         Presence.ApplyStrata()
     end)

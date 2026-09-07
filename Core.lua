@@ -9,13 +9,6 @@ ns.defaults = {
     snapThreshold = 50,
     idleAlpha = 0.4,
     strata = "MEDIUM",
-
-    -- Diagnostic, not a feature. Hover and the right-click menu install their
-    -- handlers from a hook on DamageMeterSessionWindowMixin:InitEntry, and
-    -- Blizzard's own InitEntry body then runs inside that hook - carrying our
-    -- taint into its Secret comparisons. Turning this off at login installs
-    -- neither hook, which says whether those two are the whole cause.
-    entryHooks = true,
 }
 
 -- windows is keyed by index and holds only our own indices: damageMeterType,
@@ -79,6 +72,37 @@ function ns.HookInstance(frame, methodName, handler)
 
     frame.dmtHooks[key] = true
     hooksecurefunc(frame, methodName, handler)
+end
+
+-- One timer for every module that repaints or re-attaches from outside
+-- Blizzard's render pass. Five times a second is the ceiling of how long
+-- Blizzard's own state can show before ours is on top of it again, and the
+-- work per tick is a walk over the visible bars.
+ns.SWEEP_INTERVAL = 0.2
+
+local sweeps = {}
+
+function ns.OnSweep(func)
+    table.insert(sweeps, func)
+end
+
+local function StartSweeps()
+    local elapsed = 0
+    local driver = CreateFrame("Frame")
+
+    driver:SetScript("OnUpdate", function(_, delta)
+        elapsed = elapsed + delta
+
+        if elapsed < ns.SWEEP_INTERVAL then
+            return
+        end
+
+        elapsed = 0
+
+        for _, func in ipairs(sweeps) do
+            func()
+        end
+    end)
 end
 
 local function ApplyDefaults(target, defaults)
@@ -222,16 +246,13 @@ local function HandleSlashCommand(input)
         ns.Probe()
     elseif command == "diag" then
         ns.Diagnose()
-    elseif command == "entryhooks" then
-        ns.db.entryHooks = not ns.db.entryHooks
-        ns.Print("entry hooks: " .. tostring(ns.db.entryHooks) .. " - reload to apply")
     elseif command == "hover" or command == "snap" or command == "menu" or command == "format" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: diag, probe, hover, menu, format, snap, entryhooks")
+        ns.Print("commands: diag, probe, hover, menu, format, snap")
     end
 end
 
@@ -310,6 +331,8 @@ bootstrap:SetScript("OnEvent", function()
 
     -- /dmt stays as the second alias: it is what the addon answered to before
     -- the rename, and muscle memory outlives a name change.
+    StartSweeps()
+
     SLASH_DAMAGEMETERCOMPANION1 = "/dmc"
     SLASH_DAMAGEMETERCOMPANION2 = "/dmt"
     SlashCmdList["DAMAGEMETERCOMPANION"] = HandleSlashCommand

@@ -3,9 +3,6 @@ local addonName, ns = ...
 ns.Format = {}
 local Format = ns.Format
 
--- How often the visible bars are repainted. Runs in combat too - see Enable.
-Format.INTERVAL = 0.2
-
 -- The shape Details uses for its per-second column (Details/functions/util.lua),
 -- copied because it is known to pass the client's restricted-breakpoint check
 -- and because it renders exactly the strings this feature was specified to:
@@ -175,20 +172,7 @@ function Format.Enable()
 
     options = { config = config }
 
-    local elapsed = 0
-    local driver = CreateFrame("Frame")
-    driver:SetScript("OnUpdate", function(_, delta)
-        elapsed = elapsed + delta
-
-        if elapsed < Format.INTERVAL then
-            return
-        end
-
-        elapsed = 0
-        Format.Sweep()
-    end)
-
-    Format.driver = driver
+    ns.OnSweep(Format.Sweep)
 end
 
 ns.RegisterModule("Format", Format)
