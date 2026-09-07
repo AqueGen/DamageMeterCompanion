@@ -12,7 +12,9 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 **A window page.** `/dmc` lists Blizzard's three windows with their exact size in pixels, what is attached to what, the gap, a lock per window and Lock all / Unlock all. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
 
-**Right-click on the bars.** Opens that window's type menu - Damage, Healing, Actions - with lock, hide, reset and settings appended, where the cursor is instead of on the header. The click is forwarded to Blizzard's own button through a secure action button, so the type switch is Blizzard's code all the way and works in combat. The segment stays on its own header dropdown.
+**Details on hover.** Resting the cursor on a bar shows that source's spells beside the window - icon, name, amount - in the addon's own panel, fed straight from the meter's data and painted through the same Secret-tolerant APIs as the numbers, so it works in combat. In a party the row is matched to a member by class; in a raid only your own row resolves. Blizzard's own breakdown, opened with a click, takes priority while it is open.
+
+**Window actions in the type menu.** The header's type dropdown gains Lock, Hide, Reset and the addon's settings, appended through Blizzard's own menu extension point.
 
 **Transparency and layer.** The meter dims when the mouse is away and comes back when it is over it, as a fraction of the Edit Mode transparency you already set. The frame layer is a dropdown, for when another addon covers the meter.
 
@@ -23,13 +25,13 @@ Retail only, patch 12.1. No libraries, no dependencies.
 ## Commands
 
 - `/dmc` (or `/dmt`) - settings
-- `/dmc format`, `/dmc snap`, `/dmc menu` - toggle one feature
+- `/dmc format`, `/dmc snap`, `/dmc hover` - toggle one feature
 - `/dmc diag` - what the addon sees, per window; useful when reporting a bug
 - `/dmc probe` - what the API says about Secret values right now
 
 ## What it deliberately does not do, and why
 
-On 12.x the meter's data is Secret to addons in combat, and anything an addon writes into Blizzard's meter windows taints them: their own refresh then logs a warning per row, in combat, until you reload. So this addon does not open the spell breakdown for you (Blizzard's click does that, untainted, in combat too), does not switch a window's type or segment itself (the right-click hands you Blizzard's own menu for the type, the header dropdown does the segment), does not create windows beyond Blizzard's three, and does not show a hidden window (the gear menu's Show new window does). Each of those was built, seen to taint the meter, and removed. The reasoning with line references is in `docs/DECISIONS.md`.
+On 12.x the meter's data is Secret to addons in combat, and anything an addon writes into Blizzard's meter windows taints them: their own refresh then logs a warning per row, in combat, until you reload. So this addon never opens Blizzard's own breakdown (its hover panel is a separate frame), does not switch a window's type or segment (the header dropdowns do, untainted), does not create windows beyond Blizzard's three, and does not show a hidden window (the gear menu's Show new window does). Each of those was built, seen to taint the meter, and removed. The reasoning with line references is in `docs/DECISIONS.md`.
 
 No parsing, no storage, no analysis, no skins, no report-to-chat. Blizzard's meter is the meter. If you want a meter of your own, use Details.
 

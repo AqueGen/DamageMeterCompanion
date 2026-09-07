@@ -84,8 +84,11 @@ local function BuildBlizzardOptions()
 end
 
 local function BuildBehaviourOptions()
-    AddCheckbox("menu", "Right-click opens the type menu",
-        "Right-clicking a bar opens that window's type menu - Damage, Healing, Actions - plus lock, hide, reset and settings, where the cursor is. The click is forwarded to Blizzard's own button, so it works in combat. The segment stays on its header dropdown.")
+    AddCheckbox("hover", "Details on hover",
+        "Resting the cursor on a bar shows that source's spells beside the window. It is the addon's own panel fed from the meter's data, so it works in combat; Blizzard's own breakdown, opened by clicking a bar, takes priority while it is open.")
+
+    AddSlider("hoverDelay", "Hover delay",
+        "How long the cursor must rest on a bar before the panel appears.", 0, 1, 0.05, "%.2f")
 
     AddCheckbox("format", "Readable numbers",
         "Show 56.72M instead of 56716 K. The percentage is shown only out of combat, because it is the one part that needs arithmetic on values that are Secret in combat.",

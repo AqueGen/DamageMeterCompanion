@@ -1,6 +1,6 @@
 # DamageMeterCompanion - in-game checklist
 
-Everything the headless build cannot verify. Rewritten 2026-09-07 evening after the taint cut (see DECISIONS.md); everything about hover, the right-click menu and windows beyond Blizzard's three is gone because those features are.
+Everything the headless build cannot verify. Rewritten 2026-09-07 evening after the taint cut (see DECISIONS.md); windows beyond Blizzard's three and the addon's own right-click menu are gone because those features are; hover is back as a frame of our own.
 
 Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. **The bar for every section is the same: BugSack stays empty, in combat and out.**
 
@@ -18,12 +18,13 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 - [ ] Turning Readable numbers off puts Blizzard's text back within a moment; on again re-formats.
 - [ ] A full pull with the breakdown open and closed, then leave combat: **no `attempt to compare` warnings**.
 
-## 2b. Right-click
+## 2b. Hover and the type menu
 
-- [ ] Right-clicking a bar opens the type menu with Lock, Hide, Reset and Settings appended; picking a type switches the window and the header agrees; Lock/Hide/Reset do what the gear menu's do.
-- [ ] Left-click still opens the breakdown, hover tooltips on icons still work, dragging the window still works.
-- [ ] In combat: right-click opens the menu and switching type works, BugSack stays empty.
-- [ ] Turning the option off removes the right-click (out of combat).
+- [ ] Resting the cursor on your own bar shows the spell panel beside the window; moving off closes it; moving into the panel keeps it.
+- [ ] In combat the panel shows and updates, BugSack stays empty.
+- [ ] In a party, hovering another member's bar shows their spells when their class is unique in the party; a duplicate class shows nothing.
+- [ ] Clicking a bar opens Blizzard's breakdown and the hover panel stays away while it is shown.
+- [ ] The header type dropdown ends with Lock/Unlock, Hide window, Reset and DamageMeterCompanion settings, and each works.
 
 ## 3. Snapping and size matching
 
