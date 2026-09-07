@@ -307,47 +307,6 @@ local function CollectCandidates(exceptIndex)
     return candidates
 end
 
-local MATCH_WIDTH_TEXT = "Match width"
-local MATCH_HEIGHT_TEXT = "Match height"
-
--- The callbacks look the link up on every call rather than capturing it. A
--- drag while the menu is open replaces the link table, and a captured
--- reference would then be writing to a table nothing reads.
-function Snap.AddMenuEntries(rootDescription, sessionWindow)
-    local index = sessionWindow:GetSessionWindowIndex()
-
-    if not GetLinks()[index] then
-        return
-    end
-
-    local function Toggle(field)
-        local link = GetLinks()[index]
-        if link then
-            link[field] = not link[field]
-            Snap.PushSize(link.to)
-        end
-
-        -- Keeps the menu open so both axes can be flipped in one visit.
-        return MenuResponse.Refresh
-    end
-
-    rootDescription:CreateDivider()
-
-    rootDescription:CreateCheckbox(MATCH_WIDTH_TEXT,
-        function()
-            local link = GetLinks()[index]
-            return link and link.matchWidth
-        end,
-        function() return Toggle("matchWidth") end)
-
-    rootDescription:CreateCheckbox(MATCH_HEIGHT_TEXT,
-        function()
-            local link = GetLinks()[index]
-            return link and link.matchHeight
-        end,
-        function() return Toggle("matchHeight") end)
-end
-
 function Snap.Enable()
     local function OnDragStart(window, index)
         if not ns.db.snap or not window:CanMoveOrResize() then

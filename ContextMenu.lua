@@ -177,11 +177,6 @@ local function OnInitEntry(sessionWindow, frame, elementData)
                 AddSessionEntries(rootDescription, sessionWindow)
                 rootDescription:CreateDivider()
                 AddWindowEntries(rootDescription, sessionWindow)
-
-                -- Snap adds its match-size checkboxes here once it exists.
-                if ns.Snap and ns.Snap.AddMenuEntries then
-                    ns.Snap.AddMenuEntries(rootDescription, sessionWindow)
-                end
             end)
             return
         end

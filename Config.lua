@@ -16,7 +16,7 @@ local function AddCheckbox(variableKey, name, tooltip, onChange)
             end
         end)
 
-    Settings.CreateCheckbox(category, setting, tooltip)
+    return Settings.CreateCheckbox(category, setting, tooltip)
 end
 
 -- labelFormat is a format string, applied to the value shown beside the slider.
@@ -41,6 +41,34 @@ local function AddSlider(variableKey, name, tooltip, minimum, maximum, step, lab
     end or nil)
 
     Settings.CreateSlider(category, setting, options, tooltip)
+end
+
+-- One checkbox per damage meter type, so the strip holds what this player
+-- actually switches between rather than a fixed set someone else chose. The
+-- settings are proxied onto one table keyed by type, which is what
+-- QuickButtons reads.
+local function BuildQuickButtonOptions()
+    Settings.GetCategoryLayout(category):AddInitializer(
+        CreateSettingsListSectionHeaderInitializer("Quick buttons"))
+
+    local parent = AddCheckbox("quickButtons", "Show quick buttons",
+        "A row of one-click type buttons above each meter window.",
+        function() ns.QuickButtons.RebuildAll() end)
+
+    for _, damageMeterType in ipairs(ns.QuickButtons.Order()) do
+        local name = ns.ContextMenu.GetTypeName(damageMeterType)
+
+        local setting = Settings.RegisterProxySetting(category, "DMT_quickType" .. damageMeterType,
+            Settings.VarType.Boolean, ("%s (%s)"):format(name, ns.QuickButtons.ShortName(damageMeterType)), false,
+            function() return ns.QuickButtons.IsSelected(damageMeterType) end,
+            function(value) ns.QuickButtons.SetSelected(damageMeterType, value) end)
+
+        local checkbox = Settings.CreateCheckbox(category, setting, "Put " .. name .. " on the quick button row.")
+
+        -- Greying the whole list when the feature is off keeps the page honest
+        -- about which of its controls currently do anything.
+        checkbox:SetParentInitializer(parent, function() return ns.db.quickButtons end)
+    end
 end
 
 local function BuildBehaviourOptions()
@@ -102,6 +130,8 @@ local function BuildBehaviourOptions()
         end
         return container:GetData()
     end, "Which layer the meter draws on. Raise it if another addon covers it.")
+
+    BuildQuickButtonOptions()
 end
 
 function Config.Open()
@@ -307,8 +337,22 @@ local function CreateRow(parent, index)
     row.TextSize = CreateOverrideBox(row, index, "textSize")
     row.TextSize:SetPoint("LEFT", row.TextSizeLabel, "RIGHT", 8, 0)
 
+    -- The same lock the window's own gear dropdown offers, brought here so the
+    -- page that sets a size can also stop that size being dragged away. Routed
+    -- through the window's owner, never DamageMeter, so it is correct for ours.
+    row.Lock = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.Lock:SetPoint("LEFT", row.TextSize, "RIGHT", 16, 0)
+    row.Lock.Text:SetText("lock")
+    row.Lock:SetScript("OnClick", function(self)
+        local window = ns.Windows.Get(index)
+        if window then
+            window:GetDamageMeterOwner():SetSessionWindowLocked(window, self:GetChecked())
+        end
+        RefreshWindowPanel()
+    end)
+
     row.Note = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-    row.Note:SetPoint("LEFT", row.TextSize, "RIGHT", 16, 0)
+    row.Note:SetPoint("LEFT", row.Lock.Text, "RIGHT", 16, 0)
 
     row.Link = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
     row.Link:SetPoint("TOPLEFT", row.Shown, "BOTTOMLEFT", 0, -4)
@@ -436,6 +480,11 @@ local function RefreshRow(row, index)
 
     RefreshOverrideBox(row.BarHeight, index, "barHeight")
     RefreshOverrideBox(row.TextSize, index, "textSize")
+
+    -- Window 1 is never lockable: Blizzard's owner refuses to move or resize it
+    -- whatever the flag says, so offering the box would promise nothing.
+    row.Lock:SetChecked(shown and window:IsLocked() or false)
+    row.Lock:SetEnabled(shown and not isPrimary)
 
     if isPrimary then
         row.Note:SetText("Size and appearance come from Edit Mode.")

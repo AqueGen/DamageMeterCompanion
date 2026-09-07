@@ -20,6 +20,10 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 **Hover never touches a pinned breakdown.** Details retargets on hover, but Details hovers into a tooltip and pins into a separate window - it has two surfaces. We have one, so retargeting would destroy the pin the user just made, including when the click lands inside the hover delay and the timer fires afterwards.
 
+**Match width and match height live only in the settings panel.** They were in the right-click menu too, and having one control in two places was the thing the panel section below argues against - the menu is for what you change often, the panel for the state you set once. The menu keeps type, segment and window actions.
+
+**Quick buttons sit above the window, not inside it.** The header is Blizzard's and the body is bars, so any strip inside costs a row of data. Above also keeps the strip out of the window's own rect, which is what snapping measures - a strip inside the rect would have made two snapped windows meet with a band of buttons between them. The set of types is the player's to choose because nobody switches between all eleven, and the four that are on by default are the four the type menu needed two clicks to reach.
+
 **The settings panel does not offer type, segment, or an attach control.** The right-click menu changes type and segment in fewer clicks than opening a settings page, and attaching is a drag gesture. A second way to do one thing is worse than one good way. What the panel is for is the state the menu cannot show at a glance: which windows exist, how big they are, what is attached to what.
 
 **The panel does offer numeric size entry**, because that was the point of asking for it. Values are clamped to the window's resize bounds and the panel shows the clamped result rather than silently ignoring the request.
@@ -41,6 +45,8 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 Nothing here has been verified in a running game client - see `IN-GAME-CHECKLIST.md`. Only pure logic is unit-tested; frame-bound behaviour has no automated coverage.
 
 The number formatting visibly changes at the end of a pull, because that is when the values stop being secret. This is inherent, not a bug.
+
+Removing one of Blizzard's windows 2 and 3 hides it rather than destroying it. Their slots are part of its window data list for the life of the character, so the row stays in the panel as an empty slot. Saying that plainly is better than a permanently greyed button that never explains itself.
 
 Blizzard supports three meter windows. Phase 2 added our own beyond that, and the seam is `GetDamageMeterOwner()`, which returns a plain field a window never inspects: our windows are given a proxy owner that stores state in our saved variables. **The rule that keeps this safe is that a `DamageMeterMixin` owner method must never be called for a window index above three.** Those methods route into `SetSavedWindowData`, which asserts on the index, or `GetSessionWindowData`, which returns nil and is then indexed. `assertsafe` reports and continues rather than halting, so a violation is not a crash - it silently writes into Blizzard's own saved window list and persists across reloads. Reach a window's owner through `window:GetDamageMeterOwner()` and the rule holds by construction.
 
