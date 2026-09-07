@@ -7,7 +7,7 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 ## 1. It loads at all
 
 - [ ] No Lua error on login.
-- [ ] `/dmc` opens the settings panel; the meter's own gear menu has a DamageMeterCompanion settings entry that opens it too, and in combat prints a message instead.
+- [ ] `/dmc` opens the settings panel; the meter's own gear menu has a DamageMeterCompanion settings entry out of combat; in combat the entry is absent and the menu opens without error.
 - [ ] `/dmc probe` and `/dmc diag` print without error.
 
 ## 2. Numbers
@@ -17,10 +17,6 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 - [ ] The spell breakdown (opened with Blizzard's own click) reads the full form.
 - [ ] Turning Readable numbers off puts Blizzard's text back within a moment; on again re-formats.
 - [ ] A full pull with the breakdown open and closed, then leave combat: **no `attempt to compare` warnings**.
-
-## 2b. The type menu
-
-- [ ] The header type dropdown ends with Lock/Unlock, Hide window, Reset and DamageMeterCompanion settings, and each works.
 
 ## 3. Snapping and size matching
 

@@ -12,11 +12,9 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 **A window page.** `/dmc` lists Blizzard's three windows with their exact size in pixels, what is attached to what, the gap, a lock per window and Lock all / Unlock all. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
 
-**Window actions in the type menu.** The header's type dropdown gains Lock, Hide, Reset and the addon's settings, appended through Blizzard's own menu extension point.
-
 **Transparency and layer.** The meter dims when the mouse is away and comes back when it is over it, as a fraction of the Edit Mode transparency you already set. The frame layer is a dropdown, for when another addon covers the meter.
 
-**One place for the meter's settings.** The game's own Enable and Auto Reset switches are mirrored at the bottom of the page, marked as Blizzard's, and the meter's gear menu has an entry that opens the page.
+**One place for the meter's settings.** The game's own Enable and Auto Reset switches are mirrored at the bottom of the page, marked as Blizzard's, and the meter's gear menu has an entry that opens the page (out of combat - in combat an entry of ours would taint the menu's own layout).
 
 **Key bindings** to show or hide the meter, hide every extra window, and reset the data.
 

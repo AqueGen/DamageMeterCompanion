@@ -139,6 +139,15 @@ local function AddSettingsToWindowDropdown()
     end
 
     Menu.ModifyMenu("MENU_DAMAGE_METER_WINDOW_SETTINGS", function(_, rootDescription)
+        -- Not in combat. An entry of ours is a tainted value in the menu's
+        -- description, and Blizzard's layout reads it before measuring the
+        -- menu regions, whose rects are Secret in combat (Menu.lua:989-999):
+        -- 'attempt to perform numeric conversion on a secret number value'.
+        -- Leaving the menu untouched in combat keeps its build untainted.
+        if InCombatLockdown() then
+            return
+        end
+
         rootDescription:CreateDivider()
         rootDescription:CreateButton("DamageMeterCompanion settings", function()
             ns.Config.Open()

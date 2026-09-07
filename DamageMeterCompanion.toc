@@ -16,7 +16,6 @@
 Core.lua
 Windows.lua
 Format.lua
-Entries.lua
 Snap.lua
 Preview.lua
 Presence.lua
