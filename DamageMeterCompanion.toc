@@ -15,6 +15,7 @@
 
 Core.lua
 Windows.lua
+Format.lua
 Hover.lua
 ContextMenu.lua
 Snap.lua

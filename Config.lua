@@ -53,6 +53,16 @@ local function BuildBehaviourOptions()
     AddCheckbox("menu", "Right-click menu",
         "Right-clicking a bar opens a menu for the tracked type, the segment and window actions.")
 
+    AddCheckbox("format", "Readable numbers",
+        "Show 56.72M instead of 56716 K. The percentage is shown only out of combat, because it is the one part that needs arithmetic on values that are Secret in combat.",
+        function()
+            -- Switching on needs nothing: the sweep paints within a fifth of a
+            -- second. Switching off has to put Blizzard's own text back.
+            if not ns.db.format then
+                ns.Format.Restore()
+            end
+        end)
+
     AddCheckbox("snap", "Snap windows together",
         "Dragging a window near another attaches it, and they move and resize together.")
 

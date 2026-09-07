@@ -10,6 +10,8 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 **A right-click menu on the bars.** Type, segment, lock, new window, hide window, reset, settings - all where the bar is, instead of two trips to the header dropdowns.
 
+**Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. The percentage is the one part that needs arithmetic, so it appears only out of combat.
+
 **Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Any window can attach to any other, in a chain as long as you like.
 
 **More than three windows.** Blizzard stops at three. This addon adds its own beyond that, with their own type, segment, lock, size and position, all saved per character.
@@ -23,13 +25,13 @@ Retail only, patch 12.1. No libraries, no dependencies.
 ## Commands
 
 - `/dmc` (or `/dmt`, the old name's command) - settings, also reachable from the gear dropdown on any meter window
-- `/dmc hover`, `/dmc menu`, `/dmc snap` - toggle one feature
+- `/dmc hover`, `/dmc menu`, `/dmc format`, `/dmc snap` - toggle one feature
 - `/dmc diag` - what our hooks reached, per window; for reporting a bug
 - `/dmc probe` - what the API says about Secret values right now
 
 ## What it deliberately does not do
 
-No parsing, no storage, no analysis, no skins, no report-to-chat, and no number formatting - the values are Secret to addons in combat, and a format that only holds between pulls is worse than one that holds. Blizzard's meter is the meter. Details is the addon to use if you want a meter of your own.
+No parsing, no storage, no analysis, no skins, no report-to-chat. Blizzard's meter is the meter. Details is the addon to use if you want a meter of your own.
 
 ## Development
 

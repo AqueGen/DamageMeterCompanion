@@ -17,6 +17,14 @@ Setup: `/reload`, then hit a target dummy so the meter has data.
 
 If `SetCVar` is refused in combat, the toggle binding prints a message instead of working, which is already handled.
 
+## 3. Numbers
+
+- [ ] In combat, the bars read like `56.72M` or `56.72M (40.6K)` depending on the Edit Mode Numbers setting, not `56716 K`. No percentage while in combat - expected.
+- [ ] Out of combat, after leaving combat, Complete mode shows the percentage as well: `56.72M (40.6K) 18.0%`.
+- [ ] The spell breakdown reads the full form regardless of that setting - it always forces Complete.
+- [ ] Turning Readable numbers off puts Blizzard's own text back within a moment; turning it on again re-formats.
+- [ ] No `attempt to compare` warnings in BugSack with `/dmc entryhooks` off, in or out of combat.
+
 ## 4. Hover
 
 - [ ] Hovering a bar opens the spell breakdown after a short delay.
