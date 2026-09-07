@@ -76,7 +76,7 @@ local function BuildBehaviourOptions()
         "Dragging a window near another attaches it, and they move and resize together.")
 
     AddSlider("snapThreshold", "Snap distance",
-        "How close an edge must be, in pixels, before it snaps.", 5, 40, 1)
+        "How close an edge must be, in pixels, before it snaps.", 5, 50, 1)
 
     AddSlider("idleAlpha", "Idle transparency",
         "How visible the meter is when the mouse is not on it, as a fraction of the Edit Mode transparency. "

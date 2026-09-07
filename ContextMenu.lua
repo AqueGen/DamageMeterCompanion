@@ -76,8 +76,12 @@ local function AddTypeEntries(rootDescription, sessionWindow)
         return sessionWindow:GetDamageMeterType() == damageMeterType
     end
 
+    -- Through the window's own owner, never DamageMeter directly: our windows
+    -- have the proxy as their owner, and DamageMeter's own setters look the
+    -- index up in a window data list that only holds Blizzard's three, then
+    -- index the nil they get back.
     local function SetSelected(damageMeterType)
-        DamageMeter:SetSessionWindowDamageMeterType(sessionWindow, damageMeterType)
+        sessionWindow:GetDamageMeterOwner():SetSessionWindowDamageMeterType(sessionWindow, damageMeterType)
     end
 
     for _, category in ipairs(ContextMenu.CATEGORIES) do
@@ -97,7 +101,7 @@ local function AddSessionEntries(rootDescription, sessionWindow)
     end
 
     local function SetSelected(option)
-        DamageMeter:SetSessionWindowSessionID(sessionWindow, option.type, option.sessionID)
+        sessionWindow:GetDamageMeterOwner():SetSessionWindowSessionID(sessionWindow, option.type, option.sessionID)
     end
 
     -- No global string names the concept, and labelling the submenu with one
@@ -126,24 +130,30 @@ local function AddSessionEntries(rootDescription, sessionWindow)
 end
 
 local function AddWindowEntries(rootDescription, sessionWindow)
-    if DamageMeter:CanMoveOrResizeSessionWindow(sessionWindow) then
+    local owner = sessionWindow:GetDamageMeterOwner()
+
+    if owner:CanMoveOrResizeSessionWindow(sessionWindow) then
         local locked = sessionWindow:IsLocked()
         rootDescription:CreateButton(locked and DAMAGE_METER_UNLOCK_WINDOW or DAMAGE_METER_LOCK_WINDOW, function()
-            DamageMeter:SetSessionWindowLocked(sessionWindow, not locked)
+            owner:SetSessionWindowLocked(sessionWindow, not locked)
         end)
     end
 
+    -- The predicates would survive going to DamageMeter directly, but routing
+    -- every owner call the same way makes the rule greppable, and it is what
+    -- lets Show new window keep working from one of ours once Blizzard's three
+    -- are up.
     local newWindow = rootDescription:CreateButton(DAMAGE_METER_SHOW_NEW_WINDOW, function()
-        DamageMeter:ShowNewSecondarySessionWindow()
+        owner:ShowNewSecondarySessionWindow()
     end)
     -- The predicate, not its result: only a function is re-polled while the
     -- menu stays open, which is what Blizzard's own menu passes here.
-    newWindow:SetEnabled(function() return DamageMeter:CanShowNewSecondarySessionWindow() end)
+    newWindow:SetEnabled(function() return owner:CanShowNewSecondarySessionWindow() end)
 
     local hideWindow = rootDescription:CreateButton(DAMAGE_METER_HIDE_WINDOW, function()
-        DamageMeter:HideSessionWindow(sessionWindow)
+        owner:HideSessionWindow(sessionWindow)
     end)
-    hideWindow:SetEnabled(function() return DamageMeter:CanHideSessionWindow(sessionWindow) end)
+    hideWindow:SetEnabled(function() return owner:CanHideSessionWindow(sessionWindow) end)
 
     rootDescription:CreateButton(DAMAGE_METER_RESET_ALL_SESSIONS, function()
         C_DamageMeter.ResetAllCombatSessions()

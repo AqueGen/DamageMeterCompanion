@@ -110,8 +110,10 @@ function Windows.ApplyAppearance(window, index)
     window:SetBackgroundAlpha(DamageMeter:GetBackgroundAlpha())
     window:SetStyle(DamageMeter:GetStyle())
     window:SetNumberDisplayType(DamageMeter:GetNumberDisplayType())
-    window:SetAlpha(DamageMeter:GetWindowAlpha())
 
+    -- Alpha is deliberately absent: Presence owns it, and pushing the raw Edit
+    -- Mode value here would yank every unhovered window to full opacity on any
+    -- appearance change.
     window:SetBarHeight(Windows.ResolveAppearance(DamageMeter:GetBarHeight(), saved.barHeight))
     window:SetTextScale(Windows.ResolveAppearance(DamageMeter:GetTextScale(), saved.textSize))
 end
@@ -119,6 +121,12 @@ end
 function Windows.ApplyAppearanceToOurs()
     for index, window in pairs(ourWindows) do
         Windows.ApplyAppearance(window, index)
+    end
+
+    if ns.Presence then
+        for _, window in pairs(ourWindows) do
+            ns.Presence.ApplyAlpha(window)
+        end
     end
 end
 
@@ -144,8 +152,10 @@ end
 function proxy:SetSessionWindowSessionID(window, sessionType, sessionID)
     local index = window:GetSessionWindowIndex()
 
+    -- sessionID is deliberately not persisted, for the reason Blizzard gives in
+    -- SetSavedWindowData: it names one of the player's recent encounters and
+    -- means nothing next session.
     Store(index, "sessionType", sessionType)
-    Store(index, "sessionID", sessionID)
     window:SetSession(sessionType, sessionID)
 end
 
@@ -202,9 +212,13 @@ local function BuildWindow(index)
 
     window:SetDamageMeterOwner(Windows.proxyOwner, index)
     window:SetDamageMeterType(saved.damageMeterType or Enum.DamageMeterType.DamageDone)
-    window:SetSession(saved.sessionType or DamageMeter:GetSessionType(), saved.sessionID)
+    window:SetSession(saved.sessionType or DamageMeter:GetSessionType(), nil)
     window:SetMovable(true)
     window:SetResizable(true)
+
+    -- Same rule as Blizzard's SetupSessionWindow: a later window renders above
+    -- the ones before it.
+    window:SetFrameLevel(index)
 
     -- Our own position rather than Blizzard's frame position cache, which is
     -- keyed on names it owns.
@@ -213,7 +227,9 @@ local function BuildWindow(index)
     if saved.left and saved.bottom then
         window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", saved.left, saved.bottom)
     else
-        local offset = (index - Windows.BLIZZARD_WINDOW_COUNT) * 40
+        -- Continues Blizzard's own series rather than restarting it, so our
+        -- first window does not land exactly on top of its window 2.
+        local offset = (index - 1) * 40
         window:SetPoint("TOPLEFT", UIParent, "TOPLEFT", offset, -offset)
     end
 
@@ -272,6 +288,26 @@ function Windows.Create()
         return nil
     end
 
+    -- Blizzard's owner reuses a hidden slot rather than allocating; without the
+    -- same behaviour a hidden window is unreachable and its index is consumed
+    -- for the rest of the character's life.
+    for _, index in ipairs(Windows.SortedIndices(GetSaved())) do
+        local saved = GetSaved()[index]
+
+        if saved.shown == false then
+            saved.shown = true
+
+            local window = ourWindows[index]
+            if window then
+                window:Show()
+            else
+                BuildWindow(index)
+            end
+
+            return index
+        end
+    end
+
     local taken = {}
     for index in pairs(GetSaved()) do
         taken[index] = true
@@ -320,15 +356,26 @@ end
 
 function Windows.Enable()
     for _, index in ipairs(Windows.SortedIndices(GetSaved())) do
-        BuildWindow(index)
+        -- A hand-edited saved file naming one of Blizzard's indices would
+        -- otherwise build a proxy-owned frame that Windows.Get never returns.
+        if Windows.IsOurs(index) then
+            BuildWindow(index)
+        end
     end
 
-    -- A link naming a window that no longer exists - removed on another
-    -- character, or lost to hand-edited saved variables - would anchor nothing
-    -- and confuse the panel. Drop those once, at login, before anything reads
-    -- the link table.
+    -- A link naming a window that no longer exists - removed through the panel,
+    -- or lost to hand-edited saved variables - would anchor nothing and confuse
+    -- the panel. Drop those once, at login, before anything reads the link
+    -- table.
+    --
+    -- Only our own windows can vanish for good. Blizzard's 1-3 come back when
+    -- the player shows them again, and Snap's SetupSessionWindow hook re-applies
+    -- the link at that moment - pruning here would destroy it first.
     for index, link in pairs(ns.charDb.links) do
-        if not Windows.Get(index) or not Windows.Get(link.to) then
+        local sourceGone = Windows.IsOurs(index) and not Windows.Get(index)
+        local targetGone = Windows.IsOurs(link.to) and not Windows.Get(link.to)
+
+        if sourceGone or targetGone then
             ns.charDb.links[index] = nil
         end
     end

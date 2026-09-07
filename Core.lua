@@ -6,7 +6,7 @@ ns.defaults = {
     menu = true,
     format = true,
     snap = true,
-    snapThreshold = 15,
+    snapThreshold = 50,
     idleAlpha = 0.4,
     strata = "MEDIUM",
 }
@@ -70,16 +70,20 @@ end
 -- a mixin table only reaches frames created after the hook. Everything that
 -- already exists at PLAYER_LOGIN has to be hooked one frame at a time. The
 -- flag keeps a frame from being hooked twice.
--- Keyed by the handler, not by the method name: two modules legitimately hook
--- the same method with different handlers, and both must be installed.
+-- Keyed by method and handler together: two modules legitimately hook the same
+-- method with different handlers and both must install, and one module
+-- legitimately hooks several methods with one shared handler - which a
+-- handler-only key silently collapsed into a single hook.
 function ns.HookInstance(frame, methodName, handler)
     frame.dmtHooks = frame.dmtHooks or {}
 
-    if frame.dmtHooks[handler] then
+    local key = methodName .. tostring(handler)
+
+    if frame.dmtHooks[key] then
         return
     end
 
-    frame.dmtHooks[handler] = true
+    frame.dmtHooks[key] = true
     hooksecurefunc(frame, methodName, handler)
 end
 
