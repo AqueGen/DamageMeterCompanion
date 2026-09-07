@@ -53,16 +53,6 @@ local function BuildBehaviourOptions()
     AddCheckbox("menu", "Right-click menu",
         "Right-clicking a bar opens a menu for the tracked type, the segment and window actions.")
 
-    AddCheckbox("format", "Readable numbers",
-        "Show 56.72M instead of 56716 K. Only applies once the values stop being secret, which is after combat.",
-        function()
-            -- Either direction wants a rebuild. Off: Blizzard's text has to come
-            -- back, and a Refresh out of combat does exactly that. On: the data
-            -- on screen may still be the Secret values fetched during the last
-            -- pull, which the sweep cannot read until they are fetched again.
-            ns.Format.RefreshWindows()
-        end)
-
     AddCheckbox("snap", "Snap windows together",
         "Dragging a window near another attaches it, and they move and resize together.")
 

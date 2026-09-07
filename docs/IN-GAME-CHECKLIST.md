@@ -15,12 +15,7 @@ Setup: `/reload`, then hit a target dummy so the meter has data.
 - [ ] Out of combat: `/dmc probe`. Expected all four `secret` values `false` and `SetCVar ... allowed: true`.
 - [ ] In combat, still hitting the dummy: `/dmc probe`. The design expects `totalAmount`, `amountPerSecond` and `sessionTotalAmount` `true`, `deathRecapID` `false`.
 
-If the values are **not** secret in combat, the number formatting covers combat too - better than planned, and worth telling me so I can widen it. If `SetCVar` is refused in combat, the toggle binding prints a message instead of working, which is already handled.
-
-## 3. Numbers
-
-- [ ] Out of combat, the bars read like `56.72M`, `56.72M (40.6K)` or `56.72M (40.6K) 18.0%` depending on the Edit Mode Numbers setting, not `56716 K`.
-- [ ] The spell breakdown reads the full form `56.72M (40.6K) 18.0%` regardless of that setting - it always forces Complete.
+If `SetCVar` is refused in combat, the toggle binding prints a message instead of working, which is already handled.
 
 ## 4. Hover
 

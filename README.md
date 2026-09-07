@@ -10,8 +10,6 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 **A right-click menu on the bars.** Type, segment, lock, new window, hide window, reset, settings - all where the bar is, instead of two trips to the header dropdowns.
 
-**Readable numbers.** `56716 K` becomes `56.72M`. The values are Secret in combat, so the formatting appears when the pull ends; that is a rule of the 12.x API, not a delay this addon chose.
-
 **Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Any window can attach to any other, in a chain as long as you like.
 
 **More than three windows.** Blizzard stops at three. This addon adds its own beyond that, with their own type, segment, lock, size and position, all saved per character.
@@ -25,14 +23,14 @@ Retail only, patch 12.1. No libraries, no dependencies.
 ## Commands
 
 - `/dmc` (or `/dmt`, the old name's command) - settings, also reachable from the gear dropdown on any meter window
-- `/dmc hover`, `/dmc menu`, `/dmc format`, `/dmc snap` - toggle one feature
+- `/dmc hover`, `/dmc menu`, `/dmc snap` - toggle one feature
 - `/dmc diag` - what our hooks reached, per window; for reporting a bug
 - `/dmc probe` - what the API says about Secret values right now
 
 ## What it deliberately does not do
 
-No parsing, no storage, no analysis, no skins, no report-to-chat. Blizzard's meter is the meter. Details is the addon to use if you want a meter of your own.
+No parsing, no storage, no analysis, no skins, no report-to-chat, and no number formatting - the values are Secret to addons in combat, and a format that only holds between pulls is worse than one that holds. Blizzard's meter is the meter. Details is the addon to use if you want a meter of your own.
 
 ## Development
 
-`busted tests` runs the pure-logic suite - number formatting, snap geometry, the window registry, the drop preview and the transparency rules. Everything frame-bound is verified in game against `docs/IN-GAME-CHECKLIST.md`, because none of it can run headless. `docs/DECISIONS.md` records the engine facts the design rests on and the features that were deliberately left out.
+`busted tests` runs the pure-logic suite - snap geometry, the window registry, the drop preview and the transparency rules. Everything frame-bound is verified in game against `docs/IN-GAME-CHECKLIST.md`, because none of it can run headless. `docs/DECISIONS.md` records the engine facts the design rests on and the features that were deliberately left out.

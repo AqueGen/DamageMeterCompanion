@@ -10,9 +10,9 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 **For anything the engine invokes as a *script* rather than a method, use `HookScript`.** Whether an XML `method="X"` attribute resolves the function at load or at call time cannot be determined from Blizzard's source, and hooking the mixin method is only correct under late binding. This cost a whole feature once: window snapping wrote no links at all, because the drag hook never fired for any window restored at login.
 
-**Combat session values are Secret per fetch, not per moment.** `C_DamageMeter` is documented `SecretWhenInCombat` - Secret while combat addon restrictions are in effect - and `canaccesssecrets()` grants access only to untainted code. The part that was learned the hard way: Blizzard's window re-fetches its data only on the meter's own events, which arrive in combat, so the values in its data provider after a pull are still the Secret objects fetched during it. `/dmc probe` out of combat reported every value Secret, and the "readable numbers" feature had never once applied. The fix is to fetch again ourselves the moment combat ends (`Format.RefreshWindows` on `PLAYER_REGEN_ENABLED`); out of combat a `Refresh` from our stack is clean, because the only comparisons it makes are of values that are Secret only while restricted. In combat the numbers cannot be read by any route - the rendered FontString text carries the `Text` secret aspect and `GetText` refuses tainted callers (`RequiresFontStringTextAccess`) - so in combat the bars show Blizzard's own format, and that is final.
+**Combat session values are Secret per fetch, not per moment - and readable numbers were removed over it.** `C_DamageMeter` is documented `SecretWhenInCombat`, and `canaccesssecrets()` grants access only to untainted code. Blizzard's window re-fetches only on the meter's own events, which arrive in combat, so after a pull its data provider still holds the Secret objects fetched during it: `/dmc probe` out of combat reported every value Secret, and the "readable numbers" feature had never once applied. A re-fetch on `PLAYER_REGEN_ENABLED` would have made it work between pulls, and nothing can make it work during one - the rendered FontString carries the `Text` secret aspect and `GetText` refuses tainted callers (`RequiresFontStringTextAccess`). A number format that flips at every combat boundary is worse than Blizzard's consistent one, so the user had the feature removed on 2026-09-07 rather than shipped half-working. The formatter and its tests are in git history (`Format.lua`, `tests/format_spec.lua`) if the API ever opens up.
 
-**Any `hooksecurefunc` on a function Blizzard calls while rendering the list carries our taint into their Secret comparisons**, whatever the hook body does. Both `InitEntry` (Hover, ContextMenu) and `UpdateValue` (Format) produced `attempt to compare field 'sourceDisplayType' (a secret number value, while execution tainted by ...)` in combat, each confirmed in game by disabling one at a time. Format now hooks nothing and paints from its own timer, so our code is never on Blizzard's stack. The InitEntry hooks are still in place behind `/dmc entryhooks` and are the remaining source.
+**Any `hooksecurefunc` on a function Blizzard calls while rendering the list carries our taint into their Secret comparisons**, whatever the hook body does. Both `InitEntry` (Hover, ContextMenu) and `UpdateValue` (the removed Format) produced `attempt to compare field 'sourceDisplayType' (a secret number value, while execution tainted by ...)` in combat, each confirmed in game by disabling one at a time. The InitEntry hooks are still in place behind `/dmc entryhooks` and are the remaining source.
 
 **Setting a frame's size dispatches `OnSizeChanged` re-entrantly.** A re-entrancy guard held across a size push therefore swallows the nested event. `Snap` propagates down a chain by explicit recursion and keeps the guard only to stop a second walk starting on top of the first.
 
@@ -40,13 +40,9 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 **`ContextMenu.CATEGORIES` and `TYPE_NAMES` duplicate file-local Blizzard tables.** `VerifyTypeCoverage` runs at login against the live `Enum.DamageMeterType` and prints a warning naming any type a patch adds that we do not list. A headless test could only have compared our table against a copy of itself.
 
-**Numbers are rounded, not truncated.** Details truncates; a rounded 56,716,000 is `56.72M` and being right beats matching Details digit for digit.
-
 ## Known limitations
 
 Nothing here has been verified in a running game client - see `IN-GAME-CHECKLIST.md`. Only pure logic is unit-tested; frame-bound behaviour has no automated coverage.
-
-The number formatting visibly changes at the end of a pull, because that is when the values stop being secret. This is inherent, not a bug.
 
 Removing one of Blizzard's windows 2 and 3 hides it rather than destroying it. Their slots are part of its window data list for the life of the character, so the row stays in the panel as an empty slot. Saying that plainly is better than a permanently greyed button that never explains itself.
 
@@ -62,8 +58,7 @@ The old saved variables are still declared in the TOC and adopted once at login 
 
 ## Minor issues left open on purpose
 
-- Hover and ContextMenu still install their handlers from a `hooksecurefunc` on `InitEntry`, which is a confirmed taint source in combat (see the engine facts above). `/dmc entryhooks` turns the installation off for a reload. The fix is to stop hooking `InitEntry` and attach the handlers from our own sweep, the way Format now paints - not yet done.
-- `Format.Abbreviate` checks the unit threshold before rounding, so 999999 renders as `1000.00K` rather than `1.00M`. Narrow band, cosmetic.
+- Hover and ContextMenu still install their handlers from a `hooksecurefunc` on `InitEntry`, which is a confirmed taint source in combat (see the engine facts above). `/dmc entryhooks` turns the installation off for a reload. The fix is to stop hooking `InitEntry` and attach the handlers from our own sweep, from our own timer rather than from Blizzard's render path - not yet done.
 - A full scroll-box rebuild during the hover delay can leave the pending timer holding a stale element snapshot. Needs a roster change within ~150ms of a hover; self-corrects.
 - `Snap.PushSize` sets its guard without a `pcall`, so an error inside the walk would latch it until a reload.
 - `Snap.SetLink` does not check that `link.to` names a real window index. A bogus number is persisted and then inert; a non-number is now refused by `Windows.Get`'s type guard rather than throwing during login.
@@ -74,5 +69,4 @@ The old saved variables are still declared in the TOC and adopted once at login 
 - `Windows.IsOurs` returning false for a non-number, and the reuse branch of `Windows.Create` reverting its shown flag when a build fails, have no regression tests. Both were found by review rather than by the suite.
 - `hovered[window]` can stay set if a window is hidden while the cursor is over it. Bounded at three entries, self-corrects.
 - A size edit in progress is cleared if the window is hidden mid-typing. Nothing was committed, so it is UX only.
-- `Format.SelectValues` reads `showsValuePerSecondAsPrimary` as a field where Blizzard's method compares it to `true`. Blizzard only ever assigns it a real boolean, so the two agree on every path that exists today.
 - The breakdown stays dim if it is pinned, the cursor leaves the whole meter, and then re-enters the breakdown directly from outside. Hooking `DamageMeterSourceWindowMixin:OnEnter` would close it.

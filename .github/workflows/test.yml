@@ -19,6 +19,6 @@ jobs:
       - name: Install busted
         run: luarocks install busted
       - name: Syntax-check every shipped file
-        run: luac -p Core.lua Windows.lua Format.lua Hover.lua ContextMenu.lua Snap.lua Preview.lua Presence.lua Config.lua
+        run: luac -p Core.lua Windows.lua Hover.lua ContextMenu.lua Snap.lua Preview.lua Presence.lua Config.lua
       - name: Unit tests
         run: busted tests

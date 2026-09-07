@@ -4,7 +4,6 @@ ns.defaults = {
     hover = true,
     hoverDelay = 0.15,
     menu = true,
-    format = true,
     snap = true,
     snapThreshold = 50,
     idleAlpha = 0.4,
@@ -52,19 +51,6 @@ function ns.IsAvailable()
         and DamageMeterEntryMixin ~= nil
 end
 
--- Returns true if any of the passed values is secret. nil is never secret,
--- and must be filtered out because issecretvalue is only meaningful on a value.
-function ns.IsAnySecret(...)
-    for i = 1, select("#", ...) do
-        local value = select(i, ...)
-        if value ~= nil and issecretvalue(value) then
-            return true
-        end
-    end
-
-    return false
-end
-
 -- Rows that carry a death recap render a timestamp rather than a number, and
 -- clicking one opens the death recap UI instead of the breakdown. Both the
 -- hover path and the formatting path have to leave them alone. deathRecapID is
@@ -92,21 +78,6 @@ function ns.HookInstance(frame, methodName, handler)
 
     frame.dmtHooks[key] = true
     hooksecurefunc(frame, methodName, handler)
-end
-
--- Every entry frame that exists right now, across the bars of each session
--- window, its off-screen local player entry, and its spell breakdown.
-function ns.ForEachEntryFrame(func)
-    ns.Windows.ForEach(function(window)
-        window:GetScrollBox():ForEachFrame(func)
-
-        local localPlayerEntry = window:GetLocalPlayerEntry()
-        if localPlayerEntry then
-            func(localPlayerEntry)
-        end
-
-        window:GetSourceWindow():ForEachEntryFrame(func)
-    end)
 end
 
 local function ApplyDefaults(target, defaults)
@@ -183,28 +154,6 @@ function ns.Probe()
             tostring(issecretvalue(elementData.deathRecapID))))
     end
 
-    -- The one question the formatting depends on in combat: Blizzard has already
-    -- rendered a string onto the bar, so if that string is readable we can
-    -- reformat it without ever touching the Secret numbers behind it.
-    local entry
-    window:GetScrollBox():ForEachFrame(function(frame)
-        entry = entry or frame
-    end)
-
-    if not entry or type(entry.GetValue) ~= "function" then
-        ns.Print("no entry frame on screen to read the rendered text from")
-    else
-        local text = entry:GetValue():GetText()
-
-        if text == nil then
-            ns.Print("the bar's value text is empty")
-        elseif issecretvalue(text) then
-            ns.Print("the bar's rendered text is SECRET - reformatting in combat is impossible")
-        else
-            ns.Print("the bar's rendered text is readable: " .. tostring(text))
-        end
-    end
-
     local current = C_CVar.GetCVar("damageMeterEnabled")
     local ok, err = pcall(C_CVar.SetCVar, "damageMeterEnabled", current)
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
@@ -215,9 +164,9 @@ end
 -- on window 1 and on nothing else, and both are installed per frame - so the
 -- question is which frames we reached, not what the handlers do.
 function ns.Diagnose()
-    ns.Print(("snap %s, threshold %d, menu %s, format %s, hover %s"):format(
+    ns.Print(("snap %s, threshold %d, menu %s, hover %s"):format(
         tostring(ns.db.snap), ns.db.snapThreshold,
-        tostring(ns.db.menu), tostring(ns.db.format), tostring(ns.db.hover)))
+        tostring(ns.db.menu), tostring(ns.db.hover)))
 
     local indices = ns.Windows.Indices()
     ns.Print("registry sees " .. #indices .. " window(s)")
@@ -275,13 +224,13 @@ local function HandleSlashCommand(input)
     elseif command == "entryhooks" then
         ns.db.entryHooks = not ns.db.entryHooks
         ns.Print("entry hooks: " .. tostring(ns.db.entryHooks) .. " - reload to apply")
-    elseif command == "hover" or command == "snap" or command == "menu" or command == "format" then
+    elseif command == "hover" or command == "snap" or command == "menu" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: diag, probe, hover, menu, format, snap, entryhooks")
+        ns.Print("commands: diag, probe, hover, menu, snap, entryhooks")
     end
 end
 
