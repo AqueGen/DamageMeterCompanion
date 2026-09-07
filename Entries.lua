@@ -188,12 +188,35 @@ function Entries.RefreshAfterCombat()
     end)
 end
 
+-- A breakdown our hover opened holds fields written from our stack, and
+-- Blizzard's refresh compares one of them - sourceGUID - against every row
+-- on every meter event. Out of combat that is a plain string and nothing is
+-- logged; in combat the rows are Secret and each event logs a warning for
+-- as long as the breakdown is open. Closing it as combat starts is the whole
+-- fix. Only an unpinned one: a pin was the player's own Shift-click, through
+-- Blizzard's handler, and is theirs to keep.
+function Entries.CloseHoverBreakdowns()
+    ns.Windows.ForEach(function(window)
+        local sourceWindow = window:GetSourceWindow()
+
+        if sourceWindow:IsShown() and not sourceWindow:IsSticky() then
+            window:HideSourceWindow()
+        end
+    end)
+end
+
 function Entries.Enable()
     ns.OnSweep(Entries.Sweep)
 
     local driver = CreateFrame("Frame")
     driver:RegisterEvent("PLAYER_REGEN_ENABLED")
-    driver:SetScript("OnEvent", function()
+    driver:RegisterEvent("PLAYER_REGEN_DISABLED")
+    driver:SetScript("OnEvent", function(_, event)
+        if event == "PLAYER_REGEN_DISABLED" then
+            Entries.CloseHoverBreakdowns()
+            return
+        end
+
         -- Next frame, not this one: the event fires as the lockdown lifts.
         C_Timer.After(0, Entries.RefreshAfterCombat)
     end)
