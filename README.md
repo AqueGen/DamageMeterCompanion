@@ -6,8 +6,6 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 ## What it adds
 
-**Hover instead of click.** Resting the cursor on a bar opens the spell breakdown; Shift-click pins it. In combat the row's identity is Secret to addons and hover has to wait, so use the click - that one is Blizzard's own and always works. Rows in the Deaths display are left alone - those open the death recap, and hovering one would fire it by accident.
-
 **A right-click menu on the bars.** Type, segment, lock, new window, hide window, reset, settings - all where the bar is, instead of two trips to the header dropdowns.
 
 **Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. The percentage is the one part that needs arithmetic, so it appears only out of combat.
@@ -25,7 +23,7 @@ Retail only, patch 12.1. No libraries, no dependencies.
 ## Commands
 
 - `/dmc` (or `/dmt`, the old name's command) - settings, also reachable from the gear dropdown on any meter window
-- `/dmc hover`, `/dmc menu`, `/dmc format`, `/dmc snap` - toggle one feature
+- `/dmc menu`, `/dmc format`, `/dmc snap` - toggle one feature
 - `/dmc diag` - what our hooks reached, per window; for reporting a bug
 - `/dmc probe` - what the API says about Secret values right now
 

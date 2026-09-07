@@ -84,12 +84,6 @@ local function BuildBlizzardOptions()
 end
 
 local function BuildBehaviourOptions()
-    AddCheckbox("hover", "Open details on hover",
-        "Hovering a bar opens the spell breakdown instead of requiring a click.")
-
-    AddSlider("hoverDelay", "Hover delay",
-        "How long the cursor must rest on a bar before the breakdown opens.", 0, 1, 0.05, "%.2f")
-
     AddCheckbox("menu", "Right-click menu",
         "Right-clicking a bar opens a menu for the tracked type, the segment and window actions.")
 

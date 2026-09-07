@@ -1,8 +1,6 @@
 local addonName, ns = ...
 
 ns.defaults = {
-    hover = true,
-    hoverDelay = 0.15,
     menu = true,
     format = true,
     snap = true,
@@ -46,8 +44,8 @@ function ns.IsAvailable()
 end
 
 -- Rows that carry a death recap render a timestamp rather than a number, and
--- clicking one opens the death recap UI instead of the breakdown. Both the
--- hover path and the formatting path have to leave them alone. deathRecapID is
+-- clicking one opens the death recap UI instead of the breakdown. The
+-- formatting path has to leave them alone. deathRecapID is
 -- documented NeverSecret, so reading it in combat is safe.
 function ns.HasDeathRecap(source)
     return type(source.deathRecapID) == "number" and source.deathRecapID ~= 0
@@ -228,9 +226,9 @@ end
 -- on window 1 and on nothing else, and both are installed per frame - so the
 -- question is which frames we reached, not what the handlers do.
 function ns.Diagnose()
-    ns.Print(("snap %s, threshold %d, menu %s, format %s, hover %s"):format(
+    ns.Print(("snap %s, threshold %d, menu %s, format %s"):format(
         tostring(ns.db.snap), ns.db.snapThreshold,
-        tostring(ns.db.menu), tostring(ns.db.format), tostring(ns.db.hover)))
+        tostring(ns.db.menu), tostring(ns.db.format)))
 
     local indices = ns.Windows.Indices()
     ns.Print("registry sees " .. #indices .. " window(s)")
@@ -285,13 +283,13 @@ local function HandleSlashCommand(input)
         ns.Probe()
     elseif command == "diag" then
         ns.Diagnose()
-    elseif command == "hover" or command == "snap" or command == "menu" or command == "format" then
+    elseif command == "snap" or command == "menu" or command == "format" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: diag, probe, hover, menu, format, snap")
+        ns.Print("commands: diag, probe, menu, format, snap")
     end
 end
 
