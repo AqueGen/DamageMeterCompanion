@@ -118,7 +118,7 @@ end
 
 local windowPanel
 
--- Forward declared: CreateSizeBox below refreshes the panel after an edit.
+-- Forward declared: the row controls below refresh the panel after an edit.
 local RefreshWindowPanel
 
 -- Setting the size here deliberately goes through SetSize on the window, so it
@@ -159,143 +159,336 @@ local function CreateSizeBox(row, index, dimension)
     return box
 end
 
+-- ApplyAppearance feeds barHeight to SetBarHeight and textSize to SetTextScale,
+-- so the stored text override is a scale around 1. Edit Mode's own control
+-- shows that as a percentage, so the box speaks percent and converts - which
+-- also keeps a whole-number box useful, since 1 would otherwise be the only
+-- reachable value below double size.
+local OVERRIDE_DISPLAY_UNIT = {
+    barHeight = 1,
+    textSize = 100,
+}
+
+local function CreateOverrideBox(row, index, key)
+    local unit = OVERRIDE_DISPLAY_UNIT[key]
+    local box = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+    box:SetAutoFocus(false)
+    box:SetNumeric(true)
+    box:SetMaxLetters(3)
+    box:SetSize(36, 20)
+
+    box:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        RefreshWindowPanel()
+    end)
+
+    box:SetScript("OnEnterPressed", function(self)
+        local saved = ns.charDb.windows[index]
+
+        if saved then
+            local value = tonumber(self:GetText())
+
+            -- An empty box means follow Edit Mode again.
+            saved[key] = value and (value / unit) or nil
+            ns.Windows.ApplyAppearance(ns.Windows.Get(index), index)
+        end
+
+        self:ClearFocus()
+        RefreshWindowPanel()
+    end)
+
+    return box
+end
+
+local function RefreshOverrideBox(box, index, key)
+    local saved = ns.charDb.windows[index]
+
+    -- Blizzard's three take their appearance from Edit Mode, and their row says
+    -- so in its note rather than offering a box that could not be honoured.
+    local enabled = ns.Windows.IsOurs(index) and saved ~= nil
+
+    box:SetEnabled(enabled)
+
+    -- Never overwrite a box the user is typing in; the throttled refresh in
+    -- BuildWindowPanel runs while the page is open.
+    if box:HasFocus() then
+        return
+    end
+
+    local value = enabled and saved[key]
+
+    box:SetText(value and math.floor(value * OVERRIDE_DISPLAY_UNIT[key] + 0.5) or "")
+end
+
+-- Blizzard's own toggle only knows about its three windows: calling it for one
+-- of ours would reach a DamageMeterMixin method with an index its window data
+-- list has no entry for. Ours are shown and hidden through their saved entry.
+local function ToggleShown(index)
+    if not ns.Windows.IsOurs(index) then
+        DamageMeterTweaks_ToggleWindow(index)
+        return
+    end
+
+    local window = ns.Windows.Get(index)
+    local saved = ns.charDb.windows[index]
+
+    if window and saved then
+        saved.shown = not window:IsShown()
+        window:SetShown(saved.shown)
+    end
+end
+
+local function CreateRow(parent, index)
+    local row = CreateFrame("Frame", nil, parent)
+    row:SetSize(560, 60)
+
+    row.Title = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+    row.Title:SetPoint("TOPLEFT")
+
+    row.Shown = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.Shown:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -2)
+    row.Shown:SetScript("OnClick", function()
+        ToggleShown(index)
+        RefreshWindowPanel()
+    end)
+
+    row.Size = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.Size:SetPoint("LEFT", row.Shown, "RIGHT", 40, 0)
+
+    row.Width = CreateSizeBox(row, index, "width")
+    row.Width:SetPoint("LEFT", row.Size, "RIGHT", 12, 0)
+
+    row.Height = CreateSizeBox(row, index, "height")
+    row.Height:SetPoint("LEFT", row.Width, "RIGHT", 8, 0)
+
+    row.BarHeightLabel = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    row.BarHeightLabel:SetPoint("LEFT", row.Height, "RIGHT", 16, 0)
+    row.BarHeightLabel:SetText("bar h")
+
+    row.BarHeight = CreateOverrideBox(row, index, "barHeight")
+    row.BarHeight:SetPoint("LEFT", row.BarHeightLabel, "RIGHT", 8, 0)
+
+    row.TextSizeLabel = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    row.TextSizeLabel:SetPoint("LEFT", row.BarHeight, "RIGHT", 12, 0)
+    row.TextSizeLabel:SetText("text %")
+
+    row.TextSize = CreateOverrideBox(row, index, "textSize")
+    row.TextSize:SetPoint("LEFT", row.TextSizeLabel, "RIGHT", 8, 0)
+
+    row.Note = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    row.Note:SetPoint("LEFT", row.TextSize, "RIGHT", 16, 0)
+
+    row.Link = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
+    row.Link:SetPoint("TOPLEFT", row.Shown, "BOTTOMLEFT", 0, -4)
+
+    row.GapLabel = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
+    row.GapLabel:SetPoint("LEFT", row.Link, "RIGHT", 12, 0)
+    row.GapLabel:SetText("gap")
+
+    row.Gap = CreateFrame("EditBox", nil, row, "InputBoxTemplate")
+    row.Gap:SetAutoFocus(false)
+    row.Gap:SetNumeric(true)
+    row.Gap:SetMaxLetters(3)
+    row.Gap:SetSize(36, 20)
+    row.Gap:SetPoint("LEFT", row.GapLabel, "RIGHT", 8, 0)
+
+    row.Gap:SetScript("OnEscapePressed", function(self)
+        self:ClearFocus()
+        RefreshWindowPanel()
+    end)
+
+    row.Gap:SetScript("OnEnterPressed", function(self)
+        local link = ns.charDb.links[index]
+        local value = tonumber(self:GetText())
+
+        if link and value then
+            link.gap = value
+            ns.Snap.ApplyLink(index)
+        end
+
+        self:ClearFocus()
+        RefreshWindowPanel()
+    end)
+
+    -- UICheckButtonTemplate already ships the caption font string as Text,
+    -- anchored to the right of the box, so it only needs its text set.
+    row.MatchWidth = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.MatchWidth:SetPoint("LEFT", row.Gap, "RIGHT", 16, 0)
+    row.MatchWidth.Text:SetText("match width")
+    row.MatchWidth:SetScript("OnClick", function(self)
+        local link = ns.charDb.links[index]
+        if link then
+            link.matchWidth = self:GetChecked()
+            ns.Snap.PushSize(link.to)
+            RefreshWindowPanel()
+        end
+    end)
+
+    row.MatchHeight = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
+    row.MatchHeight:SetPoint("LEFT", row.MatchWidth.Text, "RIGHT", 20, 0)
+    row.MatchHeight.Text:SetText("match height")
+    row.MatchHeight:SetScript("OnClick", function(self)
+        local link = ns.charDb.links[index]
+        if link then
+            link.matchHeight = self:GetChecked()
+            ns.Snap.PushSize(link.to)
+            RefreshWindowPanel()
+        end
+    end)
+
+    row.Detach = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+    row.Detach:SetSize(80, 22)
+    row.Detach:SetPoint("LEFT", row.MatchHeight.Text, "RIGHT", 20, 0)
+    row.Detach:SetText("Detach")
+    row.Detach:SetScript("OnClick", function()
+        ns.Snap.ClearLink(index)
+        RefreshWindowPanel()
+    end)
+
+    row.Remove = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+    row.Remove:SetSize(80, 22)
+    row.Remove:SetPoint("LEFT", row.Detach, "RIGHT", 8, 0)
+    row.Remove:SetText("Remove")
+    row.Remove:SetScript("OnClick", function()
+        ns.Windows.Remove(index)
+        RefreshWindowPanel()
+    end)
+
+    return row
+end
+
+local function RefreshRow(row, index)
+    local window = ns.Windows.Get(index)
+    local isPrimary = index == 1
+    local link = ns.charDb.links[index]
+    local shown = window ~= nil and window:IsShown()
+
+    row.Title:SetText(isPrimary and "Window 1 (primary)" or ("Window " .. index))
+    row.Shown:SetChecked(shown)
+    row.Shown:SetEnabled(not isPrimary)
+
+    if shown then
+        row.Size:SetText(("%d x %d"):format(window:GetWidth(), window:GetHeight()))
+    else
+        row.Size:SetText("-")
+    end
+
+    -- Window 1 gets the size boxes too: Windows.SetSize routes it through
+    -- Edit Mode. A locked window keeps them, greyed out, so the panel says
+    -- why the edit is refused instead of swallowing it.
+    local resizable = shown and (index == 1 or window:CanMoveOrResize())
+
+    row.Width:SetShown(true)
+    row.Width:SetEnabled(resizable)
+    row.Height:SetShown(true)
+    row.Height:SetEnabled(resizable)
+
+    if shown then
+        -- Never overwrite a box the user is typing in; the throttled
+        -- refresh below runs while the page is open.
+        if not row.Width:HasFocus() then
+            row.Width:SetText(math.floor(window:GetWidth() + 0.5))
+        end
+
+        if not row.Height:HasFocus() then
+            row.Height:SetText(math.floor(window:GetHeight() + 0.5))
+        end
+    else
+        row.Width:SetText("")
+        row.Height:SetText("")
+    end
+
+    RefreshOverrideBox(row.BarHeight, index, "barHeight")
+    RefreshOverrideBox(row.TextSize, index, "textSize")
+
+    if isPrimary then
+        row.Note:SetText("Size and appearance come from Edit Mode.")
+    elseif not ns.Windows.IsOurs(index) then
+        row.Note:SetText("Appearance comes from Edit Mode.")
+    else
+        row.Note:SetText("")
+    end
+
+    row.Link:SetText(link and ("attached to window " .. link.to) or "not attached")
+    row.Gap:SetEnabled(link ~= nil)
+
+    if not row.Gap:HasFocus() then
+        row.Gap:SetText(link and (link.gap or 0) or "")
+    end
+
+    row.MatchWidth:SetChecked(link and link.matchWidth or false)
+    row.MatchWidth:SetEnabled(link ~= nil and not isPrimary)
+    row.MatchHeight:SetChecked(link and link.matchHeight or false)
+    row.MatchHeight:SetEnabled(link ~= nil and not isPrimary)
+    row.Detach:SetEnabled(link ~= nil and not isPrimary)
+
+    -- Blizzard's three are its owner's to create and destroy, not ours.
+    row.Remove:SetEnabled(ns.Windows.IsOurs(index))
+end
+
 function RefreshWindowPanel()
     if not windowPanel or not windowPanel:IsShown() then
         return
     end
 
-    for index = 1, 3 do
-        local row = windowPanel.rows[index]
-        local window = ns.Windows.Get(index)
-        local isPrimary = index == 1
-        local link = ns.charDb.links[index]
-        local shown = window ~= nil and window:IsShown()
+    local present = {}
 
-        row.Title:SetText(isPrimary and "Window 1 (primary)" or ("Window " .. index))
-        row.Shown:SetChecked(shown)
-        row.Shown:SetEnabled(not isPrimary)
+    for position, index in ipairs(ns.Windows.Indices()) do
+        present[index] = true
+        RefreshRow(windowPanel:AcquireRow(index, position), index)
+    end
 
-        if shown then
-            row.Size:SetText(("%d x %d"):format(window:GetWidth(), window:GetHeight()))
-        else
-            row.Size:SetText("-")
+    -- A removed window leaves its row behind rather than destroying it: frames
+    -- cannot be destroyed, and the index can come back.
+    for index, row in pairs(windowPanel.rows) do
+        if not present[index] then
+            row:Hide()
         end
-
-        -- Window 1 gets the size boxes too: Windows.SetSize routes it through
-        -- Edit Mode. A locked window keeps them, greyed out, so the panel says
-        -- why the edit is refused instead of swallowing it.
-        local resizable = shown and (index == 1 or window:CanMoveOrResize())
-
-        row.Width:SetShown(true)
-        row.Width:SetEnabled(resizable)
-        row.Height:SetShown(true)
-        row.Height:SetEnabled(resizable)
-
-        if shown then
-            -- Never overwrite a box the user is typing in; the throttled
-            -- refresh below runs while the page is open.
-            if not row.Width:HasFocus() then
-                row.Width:SetText(math.floor(window:GetWidth() + 0.5))
-            end
-
-            if not row.Height:HasFocus() then
-                row.Height:SetText(math.floor(window:GetHeight() + 0.5))
-            end
-        else
-            row.Width:SetText("")
-            row.Height:SetText("")
-        end
-
-        row.Note:SetText(isPrimary and "Size is stored in the Edit Mode layout." or "")
-        row.Link:SetText(link and ("attached to window " .. link.to) or "not attached")
-        row.MatchWidth:SetChecked(link and link.matchWidth or false)
-        row.MatchWidth:SetEnabled(link ~= nil and not isPrimary)
-        row.MatchHeight:SetChecked(link and link.matchHeight or false)
-        row.MatchHeight:SetEnabled(link ~= nil and not isPrimary)
-        row.Detach:SetEnabled(link ~= nil and not isPrimary)
     end
 end
 
 -- The panel deliberately offers no way to attach a window: snapping is a drag
 -- gesture, and a control duplicating it would be a second way to do the same
--- thing. The page shows the link, its match flags and a Detach button.
+-- thing. The page shows the link, its gap, its match flags and a Detach button.
 function Config.BuildWindowPanel()
     -- A plain frame, not SettingsListTemplate: the canvas subcategory sizes the
     -- frame to fill the panel, and the template would add a list we do not use.
-    -- Nothing here scrolls - SettingsCanvas nops the mouse wheel - so the three
-    -- rows are laid out to fit; a fourth would overflow with no way to reach it.
+    -- Nothing here scrolls - SettingsCanvas nops the mouse wheel - so a player
+    -- who keeps adding windows eventually pushes a row off the bottom of the
+    -- page with no way to reach it. The soft cap warning is what stands between
+    -- them and that.
     windowPanel = CreateFrame("Frame")
     windowPanel:SetSize(600, 240)
     windowPanel:Hide()
+
+    -- Rows are pooled by window index, not by position: an index that comes
+    -- back after a Remove finds the row it had, and the position only decides
+    -- where that row is anchored this refresh.
     windowPanel.rows = {}
 
-    for index = 1, 3 do
-        local row = CreateFrame("Frame", nil, windowPanel)
-        row:SetSize(560, 60)
-        row:SetPoint("TOPLEFT", windowPanel, "TOPLEFT", 20, -20 - (index - 1) * 70)
+    function windowPanel:AcquireRow(index, position)
+        local row = self.rows[index]
 
-        row.Title = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-        row.Title:SetPoint("TOPLEFT")
+        if not row then
+            row = CreateRow(self, index)
+            self.rows[index] = row
+        end
 
-        row.Shown = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-        row.Shown:SetPoint("TOPLEFT", row.Title, "BOTTOMLEFT", 0, -2)
-        row.Shown:SetScript("OnClick", function()
-            DamageMeterTweaks_ToggleWindow(index)
-            RefreshWindowPanel()
-        end)
+        row:ClearAllPoints()
+        row:SetPoint("TOPLEFT", self, "TOPLEFT", 20, -20 - (position - 1) * 70)
+        row:Show()
 
-        row.Size = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-        row.Size:SetPoint("LEFT", row.Shown, "RIGHT", 40, 0)
-
-        row.Width = CreateSizeBox(row, index, "width")
-        row.Width:SetPoint("LEFT", row.Size, "RIGHT", 12, 0)
-
-        row.Height = CreateSizeBox(row, index, "height")
-        row.Height:SetPoint("LEFT", row.Width, "RIGHT", 8, 0)
-
-        row.Note = row:CreateFontString(nil, "ARTWORK", "GameFontDisableSmall")
-        row.Note:SetPoint("LEFT", row.Height, "RIGHT", 20, 0)
-
-        row.Link = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-        row.Link:SetPoint("TOPLEFT", row.Shown, "BOTTOMLEFT", 0, -4)
-
-        -- UICheckButtonTemplate already ships the caption font string as Text,
-        -- anchored to the right of the box, so it only needs its text set.
-        row.MatchWidth = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-        row.MatchWidth:SetPoint("LEFT", row.Link, "RIGHT", 20, 0)
-        row.MatchWidth.Text:SetText("match width")
-        row.MatchWidth:SetScript("OnClick", function(self)
-            local link = ns.charDb.links[index]
-            if link then
-                link.matchWidth = self:GetChecked()
-                ns.Snap.PushSize(link.to)
-                RefreshWindowPanel()
-            end
-        end)
-
-        row.MatchHeight = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
-        row.MatchHeight:SetPoint("LEFT", row.MatchWidth.Text, "RIGHT", 20, 0)
-        row.MatchHeight.Text:SetText("match height")
-        row.MatchHeight:SetScript("OnClick", function(self)
-            local link = ns.charDb.links[index]
-            if link then
-                link.matchHeight = self:GetChecked()
-                ns.Snap.PushSize(link.to)
-                RefreshWindowPanel()
-            end
-        end)
-
-        row.Detach = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
-        row.Detach:SetSize(80, 22)
-        row.Detach:SetPoint("LEFT", row.MatchHeight.Text, "RIGHT", 20, 0)
-        row.Detach:SetText("Detach")
-        row.Detach:SetScript("OnClick", function()
-            ns.Snap.ClearLink(index)
-            RefreshWindowPanel()
-        end)
-
-        windowPanel.rows[index] = row
+        return row
     end
+
+    windowPanel.AddWindow = CreateFrame("Button", nil, windowPanel, "UIPanelButtonTemplate")
+    windowPanel.AddWindow:SetSize(120, 22)
+    windowPanel.AddWindow:SetPoint("BOTTOMLEFT", windowPanel, "BOTTOMLEFT", 20, 20)
+    windowPanel.AddWindow:SetText("Add window")
+    windowPanel.AddWindow:SetScript("OnClick", function()
+        ns.Windows.Create()
+        RefreshWindowPanel()
+    end)
 
     windowPanel:SetScript("OnShow", RefreshWindowPanel)
 
