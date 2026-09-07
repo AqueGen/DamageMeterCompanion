@@ -19,7 +19,8 @@ If the values are **not** secret in combat, the number formatting covers combat 
 
 ## 3. Numbers
 
-- [ ] Out of combat, bars and the spell breakdown read like `56.72M (40.6K) 18.0%`, not `56716 K (40,639) 18%`.
+- [ ] Out of combat, the bars read like `56.72M`, `56.72M (40.6K)` or `56.72M (40.6K) 18.0%` depending on the Edit Mode Numbers setting, not `56716 K`.
+- [ ] The spell breakdown reads the full form `56.72M (40.6K) 18.0%` regardless of that setting - it always forces Complete.
 
 ## 4. Hover
 
@@ -36,6 +37,9 @@ If the values are **not** secret in combat, the number formatting covers combat 
 - [ ] Picking Healing Done switches the window, and the header dropdown agrees.
 - [ ] Picking a segment switches it, and the header segment widget agrees.
 - [ ] Show new window and Hide window work; Hide is greyed out on window 1.
+- [ ] The menu has a Settings entry and it opens the panel.
+- [ ] **In combat**: hover a bar to open the breakdown, then right-click and switch type. No Lua error. This is the one path where our menu drives Blizzard's refresh over secret values, and nothing headless could check it.
+- [ ] In the Deaths display, the right column shows a time like `3m 22s`, not a number.
 
 ## 6. Snapping and size matching
 
@@ -61,7 +65,8 @@ These four came out of the Task 6 review and are the ones most likely to catch s
 
 - [ ] With the mouse away the meter sits at roughly 40 percent of its Edit Mode transparency.
 - [ ] Moving the mouse over it brings it to the Edit Mode value; moving away dims it again.
-- [ ] Hovering a bar opens the breakdown and both stay at full alpha while the cursor is on either.
+- [ ] Hovering a bar opens the breakdown; moving the cursor **into** the breakdown keeps both at full alpha, and leaving it dims them again within about a fifth of a second.
+- [ ] Open a new window from the menu or its keybind. It picks up the idle transparency and the chosen layer immediately, without a reload.
 - [ ] Changing Transparency in Edit Mode still works and both states move with it.
 - [ ] A window set to uninteractable stays dim. Expected - its mouse is disabled.
 - [ ] The Layer dropdown moves the meter above other frames, with the breakdown still in front of the bars.
