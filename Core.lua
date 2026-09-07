@@ -81,9 +81,18 @@ end
 ns.SWEEP_INTERVAL = 0.2
 
 local sweeps = {}
+local frameSweeps = {}
 
 function ns.OnSweep(func)
     table.insert(sweeps, func)
+end
+
+-- Every frame, not every interval. OnUpdate runs after the frame's events
+-- have been handled and before it is drawn, so work done here lands on top of
+-- whatever Blizzard's event handlers just did and is what the player sees.
+-- The callback decides for itself whether this frame needs it.
+function ns.OnFrame(func)
+    table.insert(frameSweeps, func)
 end
 
 local function StartSweeps()
@@ -91,6 +100,10 @@ local function StartSweeps()
     local driver = CreateFrame("Frame")
 
     driver:SetScript("OnUpdate", function(_, delta)
+        for _, func in ipairs(frameSweeps) do
+            func()
+        end
+
         elapsed = elapsed + delta
 
         if elapsed < ns.SWEEP_INTERVAL then

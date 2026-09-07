@@ -4,6 +4,7 @@ ns.RegisterModule = function() end
 ns.Print = function() end
 ns.HasDeathRecap = function() return false end
 ns.OnSweep = function() end
+ns.OnFrame = function() end
 
 -- Busted insulates a spec file's globals, so the loaded chunk only sees what
 -- is written to _G explicitly.
