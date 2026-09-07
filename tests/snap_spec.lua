@@ -4,6 +4,18 @@ local ns = {}
 -- which these tests do not load.
 ns.RegisterModule = function() end
 
+-- Snap reads the registry for index ordering; the spec does not load Windows.lua.
+ns.Windows = {
+    SortedIndices = function(set)
+        local indices = {}
+        for index in pairs(set) do
+            table.insert(indices, index)
+        end
+        table.sort(indices)
+        return indices
+    end,
+}
+
 assert(loadfile("Snap.lua"))("DamageMeterTweaks", ns)
 
 local Snap = ns.Snap
@@ -153,6 +165,26 @@ describe("Snap.ApplyOrder", function()
 
     it("returns an empty list when there are no links", function()
         assert.are.same({}, Snap.ApplyOrder({}))
+    end)
+
+    it("orders a chain of five targets-first", function()
+        local links = {
+            [7] = { to = 6 },
+            [6] = { to = 5 },
+            [5] = { to = 4 },
+            [4] = { to = 1 },
+        }
+
+        assert.are.same({ 4, 5, 6, 7 }, Snap.ApplyOrder(links))
+    end)
+
+    it("orders two independent chains without dropping either", function()
+        -- Only windows that have a link appear in the order; 4 and 6 are
+        -- targets, not dependents.
+        local links = { [5] = { to = 4 }, [7] = { to = 6 } }
+        local order = Snap.ApplyOrder(links)
+
+        assert.are.same({ 5, 7 }, order)
     end)
 end)
 

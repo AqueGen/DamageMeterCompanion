@@ -66,7 +66,7 @@ local function BuildBehaviourOptions()
                 return
             end
 
-            ns.ForEachSessionWindow(function(window)
+            ns.Windows.ForEach(function(window)
                 window:Refresh(ScrollBoxConstants.RetainScrollPosition)
                 window:GetSourceWindow():Refresh(ScrollBoxConstants.RetainScrollPosition)
             end)

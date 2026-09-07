@@ -2,6 +2,7 @@ local addonName, ns = ...
 
 ns.Snap = {}
 local Snap = ns.Snap
+local Windows = ns.Windows
 
 Snap.MIN_WIDTH, Snap.MAX_WIDTH = 200, 600
 Snap.MIN_HEIGHT, Snap.MAX_HEIGHT = 120, 400
@@ -102,7 +103,7 @@ function Snap.ApplyOrder(links)
         table.insert(order, index)
     end
 
-    for index = 1, 3 do
+    for _, index in ipairs(Windows.SortedIndices(links)) do
         Place(index)
     end
 
@@ -271,7 +272,7 @@ end
 local function CollectCandidates(exceptIndex)
     local candidates = {}
 
-    ns.ForEachSessionWindow(function(window, index)
+    Windows.ForEach(function(window, index)
         if index ~= exceptIndex and window:IsShown() then
             table.insert(candidates, RectOf(window, index))
         end
@@ -361,7 +362,7 @@ function Snap.Enable()
         end
     end
 
-    ns.ForEachSessionWindow(function(window, index)
+    Windows.ForEach(function(window, index)
         -- HookScript, not a method hook: the engine invokes the XML-declared
         -- OnDragStop script, and whether `method="OnDragStop"` resolves the
         -- function at load or at call time is not determinable from source. A

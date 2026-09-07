@@ -62,7 +62,7 @@ function Presence.ApplyAlpha(window)
 end
 
 function Presence.ApplyAlphaToAll()
-    ns.ForEachSessionWindow(Presence.ApplyAlpha)
+    ns.Windows.ForEach(Presence.ApplyAlpha)
 end
 
 -- The source window template pins frameStrata="HIGH", which overrides
@@ -96,7 +96,7 @@ function Presence.ApplyStrata()
 
     DamageMeter:SetFrameStrata(strata)
 
-    ns.ForEachSessionWindow(function(window)
+    ns.Windows.ForEach(function(window)
         window:GetSourceWindow():SetFrameStrata(Presence.NextStrataUp(strata))
     end)
 end
@@ -117,7 +117,7 @@ function Presence.Enable()
     -- Mixin hook for windows created later, instance hooks for the ones that
     -- already exist and carry their own copy of SetOnUpdateReason.
     hooksecurefunc(DamageMeterSessionWindowMixin, "SetOnUpdateReason", OnSetOnUpdateReason)
-    ns.ForEachSessionWindow(function(window)
+    ns.Windows.ForEach(function(window)
         ns.HookInstance(window, "SetOnUpdateReason", OnSetOnUpdateReason)
     end)
 

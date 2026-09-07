@@ -187,7 +187,7 @@ function ContextMenu.Enable()
     -- Mixin hook for windows created later, instance hooks for the ones that
     -- already exist and carry their own copy of InitEntry.
     hooksecurefunc(DamageMeterSessionWindowMixin, "InitEntry", OnInitEntry)
-    ns.ForEachSessionWindow(function(window)
+    ns.Windows.ForEach(function(window)
         ns.HookInstance(window, "InitEntry", OnInitEntry)
     end)
 end

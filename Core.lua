@@ -16,11 +16,19 @@ ns.charDefaults = {
 }
 
 local modules = {}
+local moduleOrder = {}
 
 -- Modules register themselves at file scope and are enabled at PLAYER_LOGIN,
--- after the saved variables and the Blizzard damage meter both exist.
+-- after the saved variables and the Blizzard damage meter both exist. Enable
+-- order follows registration order, which follows the TOC. Windows.lua loads
+-- second and so is enabled first, before anything walks the registry.
 function ns.RegisterModule(name, module)
+    if modules[name] then
+        return
+    end
+
     modules[name] = module
+    table.insert(moduleOrder, module)
 end
 
 function ns.Print(message)
@@ -54,15 +62,6 @@ function ns.HasDeathRecap(source)
     return type(source.deathRecapID) == "number" and source.deathRecapID ~= 0
 end
 
-function ns.ForEachSessionWindow(func)
-    for index = 1, 3 do
-        local window = DamageMeter:GetSessionWindow(index)
-        if window then
-            func(window, index)
-        end
-    end
-end
-
 -- Mixin methods are copied onto a frame when the frame is created, so hooking
 -- a mixin table only reaches frames created after the hook. Everything that
 -- already exists at PLAYER_LOGIN has to be hooked one frame at a time. The
@@ -83,7 +82,7 @@ end
 -- Every entry frame that exists right now, across the bars of each session
 -- window, its off-screen local player entry, and its spell breakdown.
 function ns.ForEachEntryFrame(func)
-    ns.ForEachSessionWindow(function(window)
+    ns.Windows.ForEach(function(window)
         window:GetScrollBox():ForEachFrame(func)
 
         local localPlayerEntry = window:GetLocalPlayerEntry()
@@ -221,7 +220,7 @@ bootstrap:SetScript("OnEvent", function()
         return
     end
 
-    for _, module in pairs(modules) do
+    for _, module in ipairs(moduleOrder) do
         if module.Enable then
             module.Enable()
         end

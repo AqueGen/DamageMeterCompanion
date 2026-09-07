@@ -7,6 +7,7 @@
 ## X-Category: Combat
 
 Core.lua
+Windows.lua
 Format.lua
 Hover.lua
 ContextMenu.lua

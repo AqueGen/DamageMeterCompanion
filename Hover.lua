@@ -70,7 +70,7 @@ function Hover.Enable()
     -- The session windows already exist and carry copies of InitEntry, so the
     -- mixin hook alone would never fire for them.
     hooksecurefunc(DamageMeterSessionWindowMixin, "InitEntry", OnInitEntry)
-    ns.ForEachSessionWindow(function(window)
+    ns.Windows.ForEach(function(window)
         ns.HookInstance(window, "InitEntry", OnInitEntry)
     end)
 end
