@@ -97,9 +97,16 @@ end
 
 local function StartSweeps()
     local elapsed = 0
-    local driver = CreateFrame("Frame")
+    local driver = CreateFrame("Frame", nil, UIParent)
 
-    driver:SetScript("OnUpdate", function(_, delta)
+    local function OnUpdate(_, delta)
+        -- The engine runs OnUpdate handlers in registration order, and a
+        -- ScrollBox that defers a full update registers its own handler in the
+        -- same frame - after ours, so its repaint would land on top of our
+        -- paint. Re-registering every frame keeps ours at the end of the list.
+        driver:SetScript("OnUpdate", nil)
+        driver:SetScript("OnUpdate", driver.OnUpdate)
+
         for _, func in ipairs(frameSweeps) do
             func()
         end
@@ -115,7 +122,10 @@ local function StartSweeps()
         for _, func in ipairs(sweeps) do
             func()
         end
-    end)
+    end
+
+    driver.OnUpdate = OnUpdate
+    driver:SetScript("OnUpdate", OnUpdate)
 end
 
 local function ApplyDefaults(target, defaults)
