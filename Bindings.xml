@@ -1,5 +1,5 @@
 <Bindings>
-    <Binding name="DAMAGEMETERTWEAKS_TOGGLE" header="DAMAGEMETERTWEAKS_HEADER" category="DamageMeterTweaks">
+    <Binding name="DAMAGEMETERTWEAKS_TOGGLE" category="DamageMeterTweaks">
         DamageMeterTweaks_ToggleMeter()
     </Binding>
     <Binding name="DAMAGEMETERTWEAKS_WINDOW2" category="DamageMeterTweaks">

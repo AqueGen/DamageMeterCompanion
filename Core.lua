@@ -144,7 +144,6 @@ local function HandleSlashCommand(input)
     end
 end
 
-BINDING_HEADER_DAMAGEMETERTWEAKS_HEADER = "DamageMeterTweaks"
 BINDING_NAME_DAMAGEMETERTWEAKS_TOGGLE = "Show or hide the damage meter"
 BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW2 = "Toggle meter window 2"
 BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW3 = "Toggle meter window 3"
@@ -154,15 +153,25 @@ BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW3 = "Toggle meter window 3"
 -- checkbox uses.
 function DamageMeterTweaks_ToggleMeter()
     local enabled = C_CVar.GetCVarBool("damageMeterEnabled")
-    local ok, err = pcall(C_CVar.SetCVar, "damageMeterEnabled", enabled and "0" or "1")
+
+    -- SetCVar signals a refusal by returning false rather than by throwing, so
+    -- both outcomes need reporting: without the second branch a refused toggle
+    -- would be a key that silently does nothing.
+    local ok, result = pcall(C_CVar.SetCVar, "damageMeterEnabled", enabled and "0" or "1")
 
     if not ok then
-        ns.Print("cannot toggle the meter right now: " .. tostring(err))
+        ns.Print("cannot toggle the meter right now: " .. tostring(result))
+    elseif result == false then
+        ns.Print("the game refused to toggle the meter right now")
     end
 end
 
+-- Deliberately does not go through ShowNewSecondarySessionWindow: that picks
+-- the first free slot, so on a character that has never opened a second window
+-- the "window 3" key would open window 2. Addressing the index directly is
+-- what the binding's own label promises.
 function DamageMeterTweaks_ToggleWindow(index)
-    if not ns.IsAvailable() then
+    if not ns.IsAvailable() or index == 1 then
         return
     end
 
@@ -170,8 +179,25 @@ function DamageMeterTweaks_ToggleWindow(index)
 
     if window and window:IsShown() then
         DamageMeter:HideSessionWindow(window)
+        return
+    end
+
+    if not DamageMeter:CanShowNewSecondarySessionWindow() then
+        return
+    end
+
+    local windowData = DamageMeter:GetWindowDataList()[index]
+
+    if windowData then
+        DamageMeter:SetupSessionWindow(index, windowData)
+
+        -- SetupSessionWindow alone does not record that the window is showing;
+        -- the function Blizzard uses for that is file-local. Re-setting the
+        -- lock to the value it already has is a no-op that runs the same save.
+        DamageMeter:SetSessionWindowLocked(window or DamageMeter:GetSessionWindow(index), windowData.locked or false)
     else
-        DamageMeter:ShowNewSecondarySessionWindow()
+        -- CreateWindowData records the new window itself.
+        DamageMeter:CreateWindowData(index)
     end
 end
 
