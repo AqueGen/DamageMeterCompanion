@@ -361,12 +361,12 @@ function Snap.Enable()
         end
     end
 
-    -- Mixin hook for windows created later, instance hooks for the ones that
-    -- already exist and carry their own copy of OnDragStop.
-    hooksecurefunc(DamageMeterSessionWindowMixin, "OnDragStop", OnDragStop)
-
     ns.ForEachSessionWindow(function(window, index)
-        ns.HookInstance(window, "OnDragStop", OnDragStop)
+        -- HookScript, not a method hook: the engine invokes the XML-declared
+        -- OnDragStop script, and whether `method="OnDragStop"` resolves the
+        -- function at load or at call time is not determinable from source. A
+        -- script hook is correct under either.
+        window:HookScript("OnDragStop", OnDragStop)
 
         window.dmtSizeHooked = true
         window:HookScript("OnSizeChanged", function()
@@ -386,9 +386,12 @@ function Snap.Enable()
         local window = windowData.sessionWindow
         if window and not window.dmtSizeHooked then
             window.dmtSizeHooked = true
+
             window:HookScript("OnSizeChanged", function()
                 Snap.PushSize(windowDataIndex)
             end)
+
+            window:HookScript("OnDragStop", OnDragStop)
         end
 
         Snap.ApplyAll()
