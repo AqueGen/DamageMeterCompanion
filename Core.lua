@@ -144,6 +144,37 @@ local function HandleSlashCommand(input)
     end
 end
 
+BINDING_HEADER_DAMAGEMETERTWEAKS_HEADER = "DamageMeterTweaks"
+BINDING_NAME_DAMAGEMETERTWEAKS_TOGGLE = "Show or hide the damage meter"
+BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW2 = "Toggle meter window 2"
+BINDING_NAME_DAMAGEMETERTWEAKS_WINDOW3 = "Toggle meter window 3"
+
+-- The primary window cannot be hidden (CanHideSessionWindow is false for it),
+-- so the only way to put the whole meter away is the CVar the settings
+-- checkbox uses.
+function DamageMeterTweaks_ToggleMeter()
+    local enabled = C_CVar.GetCVarBool("damageMeterEnabled")
+    local ok, err = pcall(C_CVar.SetCVar, "damageMeterEnabled", enabled and "0" or "1")
+
+    if not ok then
+        ns.Print("cannot toggle the meter right now: " .. tostring(err))
+    end
+end
+
+function DamageMeterTweaks_ToggleWindow(index)
+    if not ns.IsAvailable() then
+        return
+    end
+
+    local window = DamageMeter:GetSessionWindow(index)
+
+    if window and window:IsShown() then
+        DamageMeter:HideSessionWindow(window)
+    else
+        DamageMeter:ShowNewSecondarySessionWindow()
+    end
+end
+
 local bootstrap = CreateFrame("Frame")
 bootstrap:RegisterEvent("PLAYER_LOGIN")
 bootstrap:SetScript("OnEvent", function()
