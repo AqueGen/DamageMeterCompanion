@@ -125,14 +125,6 @@ function Presence.Enable()
         end)
     end)
 
-    -- SetupSessionWindow never fires for our own windows, so the idle alpha
-    -- and the strata have to be applied to each one as it is built. A new
-    -- window carries its source window pinned to HIGH just like Blizzard's do.
-    ns.Windows.OnCreated(function(window)
-        Presence.ApplyAlpha(window)
-        Presence.ApplyStrata()
-    end)
-
     -- An Edit Mode transparency change pushes a raw alpha onto every window;
     -- re-apply through our path so the idle state survives it. DamageMeter
     -- already exists, so this is an instance hook.
