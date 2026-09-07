@@ -46,3 +46,17 @@ describe("Windows.SortedIndices", function()
         assert.are.same({}, Windows.SortedIndices({}))
     end)
 end)
+
+describe("Windows.ResolveAppearance", function()
+    it("uses the mirrored value when there is no override", function()
+        assert.are.equal(25, Windows.ResolveAppearance(25, nil))
+    end)
+
+    it("lets an override win", function()
+        assert.are.equal(14, Windows.ResolveAppearance(25, 14))
+    end)
+
+    it("treats a cleared override as no override", function()
+        assert.are.equal(25, Windows.ResolveAppearance(25, false))
+    end)
+end)

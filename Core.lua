@@ -11,8 +11,12 @@ ns.defaults = {
     strata = "MEDIUM",
 }
 
+-- windows is keyed by index and holds only our own indices: damageMeterType,
+-- sessionType, sessionID, shown, locked, nonInteractive, minimized, width,
+-- height, left, bottom, barHeight, textSize. Blizzard keeps its own for 1 to 3.
 ns.charDefaults = {
     links = {},
+    windows = {},
 }
 
 local modules = {}

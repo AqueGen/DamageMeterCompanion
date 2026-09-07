@@ -73,6 +73,12 @@ function Hover.Enable()
     ns.Windows.ForEach(function(window)
         ns.HookInstance(window, "InitEntry", OnInitEntry)
     end)
+
+    -- Our own windows also carry their own copy of InitEntry, and the mixin
+    -- hook above cannot reach them either.
+    ns.Windows.OnCreated(function(window)
+        ns.HookInstance(window, "InitEntry", OnInitEntry)
+    end)
 end
 
 ns.RegisterModule("Hover", Hover)

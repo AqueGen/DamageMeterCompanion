@@ -362,18 +362,24 @@ function Snap.Enable()
         end
     end
 
-    Windows.ForEach(function(window, index)
-        -- HookScript, not a method hook: the engine invokes the XML-declared
-        -- OnDragStop script, and whether `method="OnDragStop"` resolves the
-        -- function at load or at call time is not determinable from source. A
-        -- script hook is correct under either.
+    -- HookScript, not a method hook: the engine invokes the XML-declared
+    -- OnDragStop script, and whether `method="OnDragStop"` resolves the
+    -- function at load or at call time is not determinable from source. A
+    -- script hook is correct under either.
+    local function AttachWindow(window, index)
         window:HookScript("OnDragStop", OnDragStop)
 
         window.dmtSizeHooked = true
         window:HookScript("OnSizeChanged", function()
             Snap.PushSize(index)
         end)
-    end)
+    end
+
+    Windows.ForEach(AttachWindow)
+
+    -- Our own windows are built after this walk, and SetupSessionWindow never
+    -- fires for them, so they get the same hooks through the creation callback.
+    Windows.OnCreated(AttachWindow)
 
     -- Windows created later, through Show new window, need the same size hook.
     -- DamageMeter already exists, so this one must be an instance hook.
