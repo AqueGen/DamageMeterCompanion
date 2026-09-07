@@ -30,7 +30,9 @@ If `SetCVar` is refused in combat, the toggle binding prints a message instead o
 - [ ] Hovering a bar opens the spell breakdown after a short delay.
 - [ ] Moving the cursor off the bar closes it.
 - [ ] Moving the cursor from the bar into the breakdown keeps it open.
-- [ ] Left-clicking a bar pins the breakdown; it survives the cursor leaving and any later hover.
+- [ ] Left-clicking a bar opens the breakdown (Blizzard's own click), Shift-click pins it; a pinned one survives the cursor leaving and any later hover.
+- [ ] In combat, hover does nothing and clicking still opens the breakdown, with no error in BugSack.
+- [ ] After the pull ends, hover works again within a moment without a reload. A breakdown that was open during the pull closes once at that point - expected.
 - [ ] Hovering a row in the Deaths display does **not** open the death recap. Clicking it still does.
 - [ ] `/dmc hover` turns hover off and clicking still works.
 
@@ -38,9 +40,9 @@ If `SetCVar` is refused in combat, the toggle binding prints a message instead o
 
 Nothing of ours hooks Blizzard's render path any more, so the remaining question is whether the actions we start from tainted code warn in combat.
 
-- [ ] In combat: hover a bar so the breakdown opens. BugSack stays empty.
+- [ ] In combat: hover a bar. Nothing opens and BugSack stays empty.
 - [ ] In combat: right-click a bar and switch type. BugSack stays empty.
-- [ ] In combat: left-click a bar to pin. BugSack stays empty.
+- [ ] In combat: left-click a bar. The breakdown opens (Blizzard's handler) and BugSack stays empty.
 If any of these warns, that action goes out-of-combat-only and the design note in DECISIONS.md gets the answer.
 
 ## 5. Right-click menu

@@ -6,7 +6,7 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 ## What it adds
 
-**Hover instead of click.** Resting the cursor on a bar opens the spell breakdown. Clicking still pins it, so the breakdown stays put while you look at something else. Rows in the Deaths display are left alone - those open the death recap, and hovering one would fire it by accident.
+**Hover instead of click.** Resting the cursor on a bar opens the spell breakdown; Shift-click pins it. In combat the row's identity is Secret to addons and hover has to wait, so use the click - that one is Blizzard's own and always works. Rows in the Deaths display are left alone - those open the death recap, and hovering one would fire it by accident.
 
 **A right-click menu on the bars.** Type, segment, lock, new window, hide window, reset, settings - all where the bar is, instead of two trips to the header dropdowns.
 

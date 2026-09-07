@@ -53,6 +53,16 @@ local function OnEnter(window, frame)
         return
     end
 
+    -- ShowSourceWindow hands the row's GUID to
+    -- C_DamageMeter.GetCombatSessionSourceFromType, which is documented
+    -- SecretArguments = "AllowedWhenUntainted": a Secret GUID from our stack
+    -- is a hard error, not a warning. The GUID is Secret while combat
+    -- restrictions are on and stays Secret in the data Blizzard fetched then,
+    -- until RefreshAfterCombat below fetches again. Hover simply waits.
+    if issecretvalue(elementData.sourceGUID) or issecretvalue(elementData.sourceCreatureID) then
+        return
+    end
+
     CancelPending()
     pendingTimer = C_Timer.NewTimer(ns.db.hoverDelay, function()
         pendingTimer = nil
@@ -96,33 +106,26 @@ local function OnLeave(window, frame)
     end
 end
 
--- Left pins the breakdown, right opens the menu. Blizzard's own OnClick never
--- fires because Attach unregisters the frame's clicks; that is what lets a
--- right-click be ours instead of also pinning.
+-- Right opens the menu. Left is deliberately left to Blizzard's own OnClick:
+-- it opens the breakdown untainted, so it works in combat where a call of
+-- ours could not (see OnEnter), and Shift-click pins, which is their
+-- convention. Attach keeps the left button registered and drops the right one
+-- so a right-click reaches us without also reaching them.
 local function OnMouseDown(window, frame, mouseButtonName)
-    local elementData = ElementDataOf(window, frame)
-    if not elementData then
+    if mouseButtonName ~= "RightButton" or not ns.db.menu then
         return
     end
 
-    if mouseButtonName == "RightButton" then
-        if ns.db.menu then
-            ns.ContextMenu.Open(frame, window)
-        end
-        return
-    end
-
-    if mouseButtonName == "LeftButton" then
-        local sticky = true
-        window:ShowSourceWindow(elementData, sticky)
+    if ElementDataOf(window, frame) then
+        ns.ContextMenu.Open(frame, window)
     end
 end
 
 local function Attach(window, frame)
-    -- Every sweep, not once: SetupEntry re-registers clicks whenever the scroll
-    -- box re-acquires the frame, and this is the cheapest way to win that race
-    -- within one interval.
-    frame:RegisterForClicks()
+    -- Every sweep, not once: SetupEntry re-registers both buttons whenever
+    -- the scroll box re-acquires the frame, and this is the cheapest way to
+    -- win that race within one interval.
+    frame:RegisterForClicks("LeftButtonDown")
 
     if attached[frame] then
         return
@@ -156,8 +159,44 @@ function Entries.Sweep()
     end)
 end
 
+-- Blizzard's window re-fetches only on the meter's own events, which arrive in
+-- combat, so after a pull its rows still carry the Secret GUIDs fetched then
+-- and hover would stay dead until the next pull refreshed them. One fetch of
+-- our own once the restrictions lift hands back plain values; out of combat
+-- C_DamageMeter returns them (SecretWhenInCombat), and the only comparisons
+-- Refresh makes are of values that are Secret only while restricted.
+--
+-- Except through an open breakdown: it holds the Secret GUID it was opened
+-- with, and Refresh would compare a fresh row against it. Closing it first is
+-- the one thing that is always safe.
+function Entries.RefreshAfterCombat()
+    if InCombatLockdown() then
+        return
+    end
+
+    ns.Windows.ForEach(function(window)
+        if not window:IsShown() then
+            return
+        end
+
+        local sourceWindow = window:GetSourceWindow()
+        if sourceWindow:IsShown() and issecretvalue(sourceWindow.sourceGUID) then
+            window:HideSourceWindow()
+        end
+
+        pcall(window.Refresh, window, ScrollBoxConstants.RetainScrollPosition)
+    end)
+end
+
 function Entries.Enable()
     ns.OnSweep(Entries.Sweep)
+
+    local driver = CreateFrame("Frame")
+    driver:RegisterEvent("PLAYER_REGEN_ENABLED")
+    driver:SetScript("OnEvent", function()
+        -- Next frame, not this one: the event fires as the lockdown lifts.
+        C_Timer.After(0, Entries.RefreshAfterCombat)
+    end)
 end
 
 ns.RegisterModule("Entries", Entries)
