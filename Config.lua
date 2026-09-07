@@ -134,7 +134,10 @@ local function CreateSizeBox(row, index, dimension)
         local window = DamageMeter:GetSessionWindow(index)
         local value = tonumber(self:GetText())
 
-        if window and value and DamageMeter:CanMoveOrResizeSessionWindow(window) then
+        -- The window-level check, not the owner-level one: it is the only
+        -- variant that consults the lock, and every other resize path in this
+        -- addon already honours it.
+        if window and value and window:CanMoveOrResize() then
             if dimension == "width" then
                 window:SetWidth(ns.Snap.Clamp(value, ns.Snap.MIN_WIDTH, ns.Snap.MAX_WIDTH))
             else
@@ -172,11 +175,14 @@ function RefreshWindowPanel()
         end
 
         -- Window 1 never gets the size boxes: Edit Mode owns its size, which is
-        -- what the note says.
+        -- what the note says. A locked window keeps them, greyed out, so the
+        -- panel says why the edit is refused instead of swallowing it.
+        local resizable = shown and window:CanMoveOrResize()
+
         row.Width:SetShown(not isPrimary)
-        row.Width:SetEnabled(shown)
+        row.Width:SetEnabled(resizable)
         row.Height:SetShown(not isPrimary)
-        row.Height:SetEnabled(shown)
+        row.Height:SetEnabled(resizable)
 
         if shown and not isPrimary then
             -- Never overwrite a box the user is typing in; the throttled
