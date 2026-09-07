@@ -7,13 +7,13 @@ Setup: `/reload`, then hit a target dummy so the meter has data.
 ## 1. It loads at all
 
 - [ ] No Lua error on login.
-- [ ] `/dmt` opens the settings panel.
-- [ ] `/dmt probe` prints a line. No message about an unlisted damage meter type appeared at login.
+- [ ] `/dmc` opens the settings panel.
+- [ ] `/dmc probe` prints a line. No message about an unlisted damage meter type appeared at login.
 
 ## 2. The probe - run this early, two answers depend on it
 
-- [ ] Out of combat: `/dmt probe`. Expected all four `secret` values `false` and `SetCVar ... allowed: true`.
-- [ ] In combat, still hitting the dummy: `/dmt probe`. The design expects `totalAmount`, `amountPerSecond` and `sessionTotalAmount` `true`, `deathRecapID` `false`.
+- [ ] Out of combat: `/dmc probe`. Expected all four `secret` values `false` and `SetCVar ... allowed: true`.
+- [ ] In combat, still hitting the dummy: `/dmc probe`. The design expects `totalAmount`, `amountPerSecond` and `sessionTotalAmount` `true`, `deathRecapID` `false`.
 
 If the values are **not** secret in combat, the number formatting covers combat too - better than planned, and worth telling me so I can widen it. If `SetCVar` is refused in combat, the toggle binding prints a message instead of working, which is already handled.
 
@@ -29,7 +29,7 @@ If the values are **not** secret in combat, the number formatting covers combat 
 - [ ] Moving the cursor from the bar into the breakdown keeps it open.
 - [ ] Left-clicking a bar pins the breakdown; it survives the cursor leaving and any later hover.
 - [ ] Hovering a row in the Deaths display does **not** open the death recap. Clicking it still does.
-- [ ] `/dmt hover` turns hover off and clicking still works.
+- [ ] `/dmc hover` turns hover off and clicking still works.
 
 ## 5. Right-click menu
 
@@ -82,7 +82,7 @@ These four came out of the Task 6 review and are the ones most likely to catch s
 
 Everything in this section is new and none of it has ever run.
 
-- [ ] `/dmt` → Windows. On a fresh character the page lists three rows, and ticking row 2's Shown box creates window 2.
+- [ ] `/dmc` → Windows. On a fresh character the page lists three rows, and ticking row 2's Shown box creates window 2.
 - [ ] **Add window** creates a fourth. It draws bars, and its own gear dropdown offers type, segment, lock, uninteractable, minimize and hide, each of which works.
 - [ ] The new window's appearance matches Blizzard's. Change Bar Height in Edit Mode and confirm the new window changes too.
 - [ ] Hover, the right-click menu, the idle transparency and the snap preview all work on the new window, not just on Blizzard's.
@@ -110,7 +110,7 @@ Everything in this section is new and none of it has ever run.
 
 ## 9. Settings panel
 
-- [ ] `/dmt` opens it with the behaviour options and a Windows subcategory.
+- [ ] `/dmc` opens it with the behaviour options and a Windows subcategory.
 - [ ] Every checkbox and slider changes behaviour immediately and survives a reload.
 - [ ] The Windows page lists three rows. Window 1 says its size is controlled by Edit Mode and its Shown box is disabled.
 - [ ] Snapping two windows and reopening the page shows the link and the match flags.

@@ -52,8 +52,15 @@ Blizzard supports three meter windows. Phase 2 added our own beyond that, and th
 
 Blizzard pushes appearance settings only to its own three windows, so ours mirror them through the public getters on `DamageMeterMixin`. A setting Blizzard adds in a future patch will not reach our windows until it is mirrored too. That is the standing maintenance cost of having more windows than Blizzard supports.
 
+## The rename
+
+The addon was built as DamageMeterTweaks and renamed to DamageMeterCompanion before its first release. The old name was already taken on CurseForge by another author's addon, and - the deciding argument - the two would have shared an AddOns folder name, so a player with both installed would have had one overwrite the other.
+
+The old saved variables are still declared in the TOC and adopted once at login by `AdoptOldSavedVariables`, because a SavedVariable that is not declared is never loaded. Both declarations and that function come out once a release has shipped under the new name. `/dmt` survives as a second slash alias for the same reason.
+
 ## Minor issues left open on purpose
 
+- Our hooks touch Blizzard's entry frames three ways - `SetScript` in ContextMenu and Hover, and a `dmtHooks` field in `HookInstance` - and Blizzard's own render path then reads Secret fields off those frames, which produces `attempt to compare field 'sourceDisplayType' (a secret number value, while execution tainted by ...)` in combat. Reported in game 2026-09-07, not yet attributed to a specific module. The fix direction, if it is confirmed, is to stop touching entry frames at all and drive hover and the menu from our own overlay.
 - `Format.Abbreviate` checks the unit threshold before rounding, so 999999 renders as `1000.00K` rather than `1.00M`. Narrow band, cosmetic.
 - A full scroll-box rebuild during the hover delay can leave the pending timer holding a stale element snapshot. Needs a roster change within ~150ms of a hover; self-corrects.
 - `Snap.PushSize` sets its guard without a `pcall`, so an error inside the walk would latch it until a reload.

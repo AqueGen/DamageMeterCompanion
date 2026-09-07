@@ -1,6 +1,6 @@
 # DamageMeterCompanion
 
-Convenience for Blizzard's built-in Damage Meter, added from the outside. Every number you see is still Blizzard's - this addon changes how you drive the meter and how its windows are laid out, and computes nothing.
+A companion for Blizzard's built-in Damage Meter. Every number you see is still Blizzard's - this addon changes how you drive the meter and how its windows are laid out, and computes nothing.
 
 Retail only, patch 12.1. No libraries, no dependencies.
 
@@ -16,7 +16,7 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 **More than three windows.** Blizzard stops at three. This addon adds its own beyond that, with their own type, segment, lock, size and position, all saved per character.
 
-**A window page.** `/dmt` lists every window with its exact size in pixels, what is attached to what, the gap between them, a per-window bar height and text size override, and a lock. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
+**A window page.** `/dmc` lists every window with its exact size in pixels, what is attached to what, the gap between them, a per-window bar height and text size override, and a lock. Window 1's size is routed through Edit Mode, which is the only thing allowed to set it.
 
 **Transparency and layer.** The meter dims when the mouse is away and comes back when it is over it, as a fraction of the Edit Mode transparency you already set. The frame layer is a dropdown, for when another addon covers the meter.
 
@@ -24,10 +24,10 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 ## Commands
 
-- `/dmt` - settings
-- `/dmt hover`, `/dmt menu`, `/dmt format`, `/dmt snap` - toggle one feature
-- `/dmt diag` - what our hooks reached, per window; for reporting a bug
-- `/dmt probe` - what the API says about Secret values right now
+- `/dmc` (or `/dmt`, the old name's command) - settings, also reachable from the gear dropdown on any meter window
+- `/dmc hover`, `/dmc menu`, `/dmc format`, `/dmc snap` - toggle one feature
+- `/dmc diag` - what our hooks reached, per window; for reporting a bug
+- `/dmc probe` - what the API says about Secret values right now
 
 ## What it deliberately does not do
 

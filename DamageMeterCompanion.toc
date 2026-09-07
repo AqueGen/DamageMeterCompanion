@@ -8,6 +8,7 @@
 # x-release-please-end
 ## X-License: MIT
 ## X-Website: https://github.com/AqueGen/DamageMeterCompanion
+## X-Curse-Project-ID: 1686059
 ## SavedVariables: DamageMeterCompanionDB, DamageMeterTweaksDB
 ## SavedVariablesPerCharacter: DamageMeterCompanionCharDB, DamageMeterTweaksCharDB
 ## X-Category: Combat
