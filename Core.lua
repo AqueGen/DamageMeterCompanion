@@ -183,6 +183,28 @@ function ns.Probe()
             tostring(issecretvalue(elementData.deathRecapID))))
     end
 
+    -- The one question the formatting depends on in combat: Blizzard has already
+    -- rendered a string onto the bar, so if that string is readable we can
+    -- reformat it without ever touching the Secret numbers behind it.
+    local entry
+    window:GetScrollBox():ForEachFrame(function(frame)
+        entry = entry or frame
+    end)
+
+    if not entry or type(entry.GetValue) ~= "function" then
+        ns.Print("no entry frame on screen to read the rendered text from")
+    else
+        local text = entry:GetValue():GetText()
+
+        if text == nil then
+            ns.Print("the bar's value text is empty")
+        elseif issecretvalue(text) then
+            ns.Print("the bar's rendered text is SECRET - reformatting in combat is impossible")
+        else
+            ns.Print("the bar's rendered text is readable: " .. tostring(text))
+        end
+    end
+
     local current = C_CVar.GetCVar("damageMeterEnabled")
     local ok, err = pcall(C_CVar.SetCVar, "damageMeterEnabled", current)
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
