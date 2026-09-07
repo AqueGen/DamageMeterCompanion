@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.5.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.4.0...v0.5.0) (2026-09-07)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove hover-to-open - opening Blizzard's breakdown from addon code taints its rows until reload; the right-click menu stays
+
+### Features
+
+* details on hover as a frame of our own fed from C_DamageMeter, works in combat; the secure right-click could not open a dropdown and is gone, the type menu keeps lock, hide, reset and settings ([7a46e33](https://github.com/AqueGen/DamageMeterCompanion/commit/7a46e3320c90ff344b0c19a8db44e84538a5e4ff))
+* remove hover-to-open - opening Blizzard's breakdown from addon code taints its rows until reload; the right-click menu stays ([4b0e43f](https://github.com/AqueGen/DamageMeterCompanion/commit/4b0e43f8ace5d4f64fe7b8a61cc43eeb6ab204d0))
+* right-click on the bars opens the window's own type menu through a secure click, with lock, hide, reset and settings appended - Blizzard's code all the way, works in combat ([52fe2ab](https://github.com/AqueGen/DamageMeterCompanion/commit/52fe2abf3f58d13c51899d17c8d8a3b40f4d12a2))
+* the Shown box is back on the Windows page; showing offers a reload, which is what clears the taint ([c2d7d56](https://github.com/AqueGen/DamageMeterCompanion/commit/c2d7d5676e8a1c17ea4496655210ac1d2663f4bb))
+
+
+### Bug Fixes
+
+* hover waits for combat to end on the server too - a fresh fetch with a readable source name is the signal ([38a6619](https://github.com/AqueGen/DamageMeterCompanion/commit/38a6619b5a4a17a029c526143d1a75e4020c41b4))
+* keep the paint driver last in the OnUpdate order so a deferred ScrollBox update cannot repaint over it ([43d5da4](https://github.com/AqueGen/DamageMeterCompanion/commit/43d5da4b9c484929e79389d19a16438981356147))
+* paint the numbers every frame out of combat too - a click's refresh showed Blizzard's format for a moment ([e8f2273](https://github.com/AqueGen/DamageMeterCompanion/commit/e8f2273bd9bd82f33140c242071762234ee3a61c))
+
+
+### Reverts
+
+* back to the state before the taint cut (ccd3bdd), keeping the 0.4.0 version files ([d2a5cf6](https://github.com/AqueGen/DamageMeterCompanion/commit/d2a5cf682966fb7672135f9ae512c295854202e9))
+
 ## [0.4.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.3.0...v0.4.0) (2026-09-07)
 
 
