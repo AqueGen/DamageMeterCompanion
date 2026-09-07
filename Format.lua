@@ -3,9 +3,8 @@ local addonName, ns = ...
 ns.Format = {}
 local Format = ns.Format
 
--- How often the visible bars are repainted. The sweep only runs out of combat,
--- so this is not a combat cost; it is what replaces the hook that used to do
--- the same work at exactly the right moment.
+-- How often the visible bars are repainted. This is what replaces the hook that
+-- used to do the same work at exactly the right moment.
 Format.INTERVAL = 0.2
 
 local UNITS = {
@@ -83,12 +82,19 @@ function Format.Compose(main, parenthetical, percentage)
     return mainText
 end
 
+-- Set when a row's values turn out to be Secret, which means the sweep has
+-- nothing more to do this tick: secrecy is a property of the moment, not of one
+-- row. Reading it is what tells us whether combat blocks us, instead of
+-- assuming it always does.
+local secretSeen = false
+
 local function Repaint(entry)
     if ns.HasDeathRecap(entry) then
         return
     end
 
     if ns.IsAnySecret(entry.value, entry.valuePerSecond, entry.sessionTotalValue) then
+        secretSeen = true
         return
     end
 
@@ -121,12 +127,15 @@ function Format.Sweep()
     end
 
     restorePending = false
+    secretSeen = false
 
     ns.ForEachEntryFrame(function(entry)
         -- One bad row must not stop the rest of the list being painted, and a
         -- patch that renames a field would otherwise turn a cosmetic feature
         -- into an error every fifth of a second.
-        pcall(apply, entry)
+        if not secretSeen then
+            pcall(apply, entry)
+        end
     end)
 end
 
@@ -140,9 +149,12 @@ end
 -- whatever the hook body does.
 --
 -- Painting from our own timer instead means our code is never on their stack.
--- It costs up to one interval of Blizzard's formatting after a change, and it
--- runs only out of combat - which loses nothing, because in combat the values
--- are Secret and the formatting never applied anyway.
+-- It costs up to one interval of Blizzard's formatting after a change.
+--
+-- The sweep deliberately does NOT refuse to run in combat. Whether the values
+-- can be read is a question issecretvalue answers per row, and answering it is
+-- free; assuming combat always hides them was a guess, and it cost the feature
+-- exactly when the numbers are worth reading.
 function Format.Enable()
     local elapsed = 0
 
@@ -155,10 +167,6 @@ function Format.Enable()
         end
 
         elapsed = 0
-
-        if InCombatLockdown() then
-            return
-        end
 
         Format.Sweep()
     end)
