@@ -11,15 +11,18 @@ Phase 1 shipped hover details, a right-click menu, magnetic snapping, readable n
 1. **Snapping gives no feedback.** Dragging a window near another shows nothing about whether releasing will attach it, so the feature feels unreliable even where it works, and there is no way to tell a successful attach from two windows that merely ended up adjacent.
 2. **Snapped windows do not travel together.** Moving window 1 leaves the others behind. The link is never created; see the diagnosis below.
 3. **There is no pixel-precise sizing.** Window 1's size cannot be set at all from the panel, and the others only through a box whose value the user cannot compare against window 1's.
-4. **The spell breakdown opens where it likes.** It picks left or right from which half of the screen the window sits in, and lands on top of other panels.
-5. **Three windows is not enough,** and Blizzard's limit is three.
-6. **Windows cannot be chained arbitrarily** - 2 under 3, 3 under 4, 4 under 5 - because the link machinery counts to three.
+4. **Three windows is not enough,** and Blizzard's limit is three.
+5. **Windows cannot be chained arbitrarily** - 2 under 3, 3 under 4, 4 under 5 - because the link machinery counts to three.
 
 The through-line: phase 1 built the right gesture and then broke it, hid it, and capped how far it could reach.
 
 Not in scope, unchanged from phase 1: our own data collection, our own bars, our own tooltip, anything that reads combat numbers.
 
-Rejected during this design, so the reasoning is on record: **an explicit anchor picker in the settings panel** - attach to window N, at side S, corner to corner. It was designed in response to a belief that Edit Mode owning window 1 made drag-snapping to it impossible. That belief was wrong: only the window being moved has to be draggable, and window 1 never moves during the gesture. With the drag hook fixed and the snap visible, the picker would be a second way to do one thing, and a wordier one.
+Two things were designed during this phase and then dropped, so the reasoning is on record:
+
+**An explicit anchor picker in the settings panel** - attach to window N, at side S, corner to corner. It answered a belief that Edit Mode owning window 1 made drag-snapping to it impossible. The belief was wrong: only the window being moved has to be draggable, and window 1 never moves during the gesture. With the drag hook fixed and the snap visible, the picker is a second way to do one thing, and the wordier one.
+
+**A setting for which side the spell breakdown opens on,** and behind it a Details-style draggable anchor point. Blizzard already picks the side with more room, which is a rule rather than a coin toss. Details needs a fixed anchor because its tooltip follows the cursor and has nowhere of its own to live; ours is glued to a meter window, so once the windows are placed the breakdown lands predictably. The draggable variant would add a movable frame with its own saved position, lock and settings, to solve a problem that arranging the windows already solves. If it still lands somewhere unhelpful after the windows are arranged, that is when to reconsider.
 
 ## Constraints discovered while reading the source
 
@@ -28,7 +31,6 @@ Rejected during this design, so the reasoning is on record: **an explicit anchor
 - **`assertsafe` does not halt** (`Blizzard_SharedXMLBase/ErrorUtil.lua:8-29`) - it reports through the error handler and returns. So a mistake that reaches Blizzard's index assertions degrades into error spam rather than a broken client. We still avoid that path entirely.
 - **`MAX_DAMAGE_METER_SESSION_WINDOWS = 3` is file-local** to `DamageMeter.lua`, as is `SetSavedWindowData`, which asserts on it. Blizzard's own three windows keep their real owner and are untouched by any of this.
 - **Window 1's size is an Edit Mode setting.** Blizzard's own resize handle writes it with `EditModeManagerFrame:OnSystemSettingChange(self, Enum.EditModeDamageMeterSetting.FrameWidth, width)` (`EditModeSystemTemplates.lua:3438-3441`). The bounds are 200-600 wide and 120-400 tall (`EditModeSettingDisplayInfo.lua:1278-1300`) - the same as every other window's `ResizeBounds`, so one clamp serves all windows.
-- **The breakdown's side is chosen by screen half** in `DamageMeterSourceWindowMixin:AnchorToSessionWindow` (`DamageMeterSourceWindow.lua:280-329`), which also flips the resize button's corner and texture to match. It is a plain mixin method and can be post-hooked.
 - **Drag scripts are declared in XML as `<OnDragStop method="OnDragStop"/>`** (`DamageMeterSessionWindow.xml:150`). Whether that resolves the method at load or at call time is not determinable from source, and phase 1's final review flagged it as the one unsettled question. `HookScript` on the script itself sidesteps it.
 
 ## Diagnosis: why snapped windows do not travel together
@@ -37,11 +39,11 @@ Phase 1 hooks `OnDragStop` as a mixin method, on the table for windows created l
 
 The fix is not to guess which binding applies: `window:HookScript("OnDragStop", handler)` hooks the script the engine actually invokes, which is true under either. Phase 1 already uses `HookScript` for `OnSizeChanged` for the same reason.
 
-This also stops mattering as the primary path once anchors are explicit - a link set from the panel is written whether or not a drag was ever observed.
+The same class of bug had already been found once in phase 1 and fixed only where it was noticed: `OnSizeChanged` uses `HookScript`, `OnDragStop` did not.
 
 ## Architecture
 
-Phase 1's modules stay. Three change and one is new.
+Phase 1's modules stay. Three change and two are new.
 
 ```text
 Core.lua        -- unchanged apart from the window registry helpers
@@ -49,10 +51,10 @@ Format.lua      -- unchanged
 Hover.lua       -- unchanged
 ContextMenu.lua -- unchanged apart from reaching windows through the registry
 Presence.lua    -- unchanged apart from reaching windows through the registry
-Snap.lua        -- link model generalised, drag hook corrected, gap offsets
-Config.lua      -- the window table becomes a variable-length list with anchor controls
+Snap.lua        -- index cap removed, drag hook corrected, gap offsets
+Config.lua      -- the window table becomes a variable-length list
 Windows.lua     -- NEW: the proxy owner, extra window creation, and the registry
-Breakdown.lua   -- NEW: which side the spell breakdown opens on
+Preview.lua     -- NEW: the highlight shown while a drag is about to snap
 ```
 
 ### Windows.lua - the registry and the proxy owner
@@ -132,14 +134,6 @@ The Windows page becomes a variable-length list with an Add window button and, p
 Window 1 gains size entry it did not have, because `OnSystemSettingChange` is the same call Blizzard's own resize handle makes. That call is made from our tainted stack, so it is wrapped: a refusal prints one line rather than erroring, and the panel re-reads the effective size afterwards so what is shown is what took.
 
 Removing a window destroys the frame, drops its saved entry, and clears every link pointing at it.
-
-### Breakdown.lua - which side the spell breakdown opens
-
-A post-hook on `DamageMeterSourceWindowMixin:AnchorToSessionWindow` re-anchors when the setting is not Auto. Auto leaves Blizzard's screen-half choice alone.
-
-Left and right reuse Blizzard's own anchoring, including the resize button's corner and texture flip, by choosing which branch to redo. Above and below anchor the breakdown's bottom to the window's top, or its top to the window's bottom, matching horizontal edges. The resize button stays in the bottom-right corner for those two: Blizzard's flip logic only knows left from right, and inventing a vertical variant would mean redrawing textures we do not own. The button still works; it is only in a less natural corner.
-
-The setting is global rather than per window, because the reason to change it is where the meter sits relative to the rest of the UI, which is one arrangement.
 
 ## Error handling
 

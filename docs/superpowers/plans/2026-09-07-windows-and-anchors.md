@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Make window placement work: fix the drag that never linked, show what a drag is about to attach to, lift the three-window ceiling, and let every window's size and the breakdown's side be set exactly.
+**Goal:** Make window placement work: fix the drag that never linked, show what a drag is about to attach to, lift the three-window ceiling, and let every window's size be set to the pixel.
 
-**Architecture:** A new `Windows.lua` owns a registry every other module walks instead of counting to three, and a proxy owner object that lets us create real `DamageMeterSessionWindowTemplate` frames beyond Blizzard's limit — the seam is `GetDamageMeterOwner()`, which returns a plain field. `Snap.lua` keeps its link model but stops assuming three indices and hooks the drag script rather than the mixin method. A new `Breakdown.lua` post-hooks the spell breakdown's anchoring.
+**Architecture:** A new `Windows.lua` owns a registry every other module walks instead of counting to three, and a proxy owner object that lets us create real `DamageMeterSessionWindowTemplate` frames beyond Blizzard's limit — the seam is `GetDamageMeterOwner()`, which returns a plain field. `Snap.lua` keeps its link model but stops assuming three indices and hooks the drag script rather than the mixin method.
 
 **Tech Stack:** Lua 5.1 (WoW client), no libraries, no Ace. Tests: busted 2.3.0 under WSL at `~/luaenv/bin/busted`.
 
@@ -35,17 +35,18 @@
 | File | Change | Responsibility |
 | --- | --- | --- |
 | `Windows.lua` | Create | Registry over all windows, proxy owner, creation and removal, appearance mirroring and overrides |
-| `Breakdown.lua` | Create | Which side the spell breakdown opens on |
-| `Core.lua` | Modify | `ns.ForEachSessionWindow` retired in favour of the registry; new saved-variable defaults |
+| `Core.lua` | Modify | `ns.ForEachSessionWindow` retired in favour of the registry; deterministic module enable order; new saved-variable defaults |
 | `Snap.lua` | Modify | Drag hook corrected, link gap, preview geometry, index assumptions removed |
 | `Preview.lua` | Create | The two highlight bars drawn while a drag is about to snap |
 | `Config.lua` | Modify | Variable-length window list with add, remove, gap and appearance overrides |
-| `DamageMeterTweaks.toc` | Modify | Load `Windows.lua` early, `Preview.lua` and `Breakdown.lua` after `Snap.lua` |
+| `DamageMeterTweaks.toc` | Modify | Load `Windows.lua` early, `Preview.lua` after `Snap.lua` |
 | `tests/windows_spec.lua` | Create | Registry ordering, index allocation, appearance resolution |
 | `tests/preview_spec.lua` | Create | Highlight bar geometry |
 | `tests/snap_spec.lua` | Modify | Arbitrary index sets, gap offsets |
 
-Load order in the TOC becomes: `Core.lua`, `Windows.lua`, `Format.lua`, `Hover.lua`, `ContextMenu.lua`, `Snap.lua`, `Preview.lua`, `Breakdown.lua`, `Presence.lua`, `Config.lua`. `Windows.lua` goes second because every module after it walks the registry.
+Load order in the TOC becomes: `Core.lua`, `Windows.lua`, `Format.lua`, `Hover.lua`, `ContextMenu.lua`, `Snap.lua`, `Preview.lua`, `Presence.lua`, `Config.lua`. `Windows.lua` goes second because every module after it walks the registry, and Task 2 makes enable order follow registration order so that ordering is honoured rather than assumed.
+
+**Not in this plan, and deliberately so:** a setting for which side the spell breakdown opens on, and a Details-style draggable anchor point for it. Blizzard already picks the side with more room, which is a rule rather than a coin toss; Details needs a fixed anchor because its tooltip follows the cursor, while ours is glued to a meter window and therefore lands predictably once the windows themselves are placed. The draggable variant would be a new movable frame with its own saved position and lock. If the breakdown still lands somewhere unhelpful after the windows are arranged, that is the moment to reconsider - not before.
 
 ---
 
@@ -1232,118 +1233,7 @@ git commit -m "feat: pixel-precise sizes for every window including the primary"
 
 ---
 
-### Task 8: Which side the spell breakdown opens on
-
-**Files:**
-- Create: `Breakdown.lua`
-- Modify: `DamageMeterTweaks.toc`, `Core.lua`, `Config.lua`
-
-**Interfaces:**
-- Consumes: `ns.db.breakdownSide`, `ns.Windows.ForEach`, `ns.HookInstance`.
-- Produces: `ns.Breakdown.SIDES` — array of `"AUTO"`, `"LEFT"`, `"RIGHT"`, `"ABOVE"`, `"BELOW"`; `ns.Breakdown.Enable()`.
-
-- [ ] **Step 1: Add the setting default**
-
-In `Core.lua`, add to `ns.defaults`:
-
-```lua
-    breakdownSide = "AUTO",
-```
-
-- [ ] **Step 2: Write `Breakdown.lua`**
-
-```lua
-local addonName, ns = ...
-
-ns.Breakdown = {}
-local Breakdown = ns.Breakdown
-
-Breakdown.SIDES = { "AUTO", "LEFT", "RIGHT", "ABOVE", "BELOW" }
-
--- Blizzard picks left or right from which half of the screen the window sits
--- in (DamageMeterSourceWindow.lua:280-329). Post-hooking lets Auto keep that
--- behaviour untouched while a chosen side overrides it.
-local function Reanchor(sourceWindow, sessionWindow)
-    local side = ns.db.breakdownSide
-
-    if side == "AUTO" then
-        return
-    end
-
-    sourceWindow:ClearAllPoints()
-
-    if side == "LEFT" then
-        sourceWindow:SetPoint("TOPRIGHT", sessionWindow, "TOPLEFT")
-        sourceWindow:SetPoint("BOTTOMRIGHT", sessionWindow, "BOTTOMLEFT")
-    elseif side == "RIGHT" then
-        sourceWindow:SetPoint("TOPLEFT", sessionWindow, "TOPRIGHT")
-        sourceWindow:SetPoint("BOTTOMLEFT", sessionWindow, "BOTTOMRIGHT")
-    elseif side == "ABOVE" then
-        sourceWindow:SetPoint("BOTTOMLEFT", sessionWindow, "TOPLEFT")
-        sourceWindow:SetPoint("BOTTOMRIGHT", sessionWindow, "TOPRIGHT")
-    else
-        sourceWindow:SetPoint("TOPLEFT", sessionWindow, "BOTTOMLEFT")
-        sourceWindow:SetPoint("TOPRIGHT", sessionWindow, "BOTTOMRIGHT")
-    end
-end
-
-function Breakdown.Enable()
-    hooksecurefunc(DamageMeterSourceWindowMixin, "AnchorToSessionWindow", Reanchor)
-
-    ns.Windows.ForEach(function(window)
-        ns.HookInstance(window:GetSourceWindow(), "AnchorToSessionWindow", Reanchor)
-    end)
-end
-
-ns.RegisterModule("Breakdown", Breakdown)
-```
-
-Above and below anchor two corners each, so the breakdown takes the window's width; left and right take its height, matching Blizzard's own arrangement. The resize button stays where Blizzard put it: its corner and texture flip only knows left from right, and inventing a vertical variant would mean redrawing textures we do not own.
-
-- [ ] **Step 3: Add it to the TOC**
-
-Insert `Breakdown.lua` after `Preview.lua`.
-
-- [ ] **Step 4: Add the dropdown to the panel**
-
-In `Config.lua`'s `BuildBehaviourOptions`, alongside the strata dropdown:
-
-```lua
-    local breakdownSetting = Settings.RegisterProxySetting(category, "DMT_breakdownSide",
-        Settings.VarType.String, "Breakdown side", ns.defaults.breakdownSide,
-        function() return ns.db.breakdownSide end,
-        function(value) ns.db.breakdownSide = value end)
-
-    Settings.CreateDropdown(category, breakdownSetting, function()
-        local container = Settings.CreateControlTextContainer()
-        for _, side in ipairs(ns.Breakdown.SIDES) do
-            container:Add(side, side)
-        end
-        return container:GetData()
-    end, "Which side of the meter the spell breakdown opens on. Auto keeps Blizzard's choice, which is whichever side of the screen has more room.")
-```
-
-- [ ] **Step 5: Run the checks**
-
-```bash
-MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/g/Games/World of Warcraft/_retail_/Interface/AddOns/DamageMeterTweaks" && ~/luaenv/bin/luac -p Breakdown.lua Config.lua Core.lua'
-MSYS_NO_PATHCONV=1 wsl bash -lc 'cd "/mnt/g/Games/World of Warcraft/_retail_/Interface/AddOns/DamageMeterTweaks" && ~/luaenv/bin/busted tests'
-```
-
-Expected: 68 successes / 0 failures.
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add Breakdown.lua DamageMeterTweaks.toc Core.lua Config.lua
-git commit -m "feat: choose which side the spell breakdown opens on"
-```
-
-**Pending user verification:** each of the five settings puts the breakdown where it says, including on a window near a screen edge; Auto still behaves as before.
-
----
-
-### Task 9: The window list becomes a list
+### Task 8: The window list becomes a list
 
 **Files:**
 - Modify: `Config.lua`
