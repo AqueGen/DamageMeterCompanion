@@ -4,6 +4,7 @@ ns.Config = {}
 local Config = ns.Config
 
 local category
+local categoryLayout
 
 local function AddCheckbox(variableKey, name, tooltip, onChange)
     local setting = Settings.RegisterProxySetting(category, "DMC_" .. variableKey,
@@ -41,6 +42,45 @@ local function AddSlider(variableKey, name, tooltip, minimum, maximum, step, lab
     end or nil)
 
     Settings.CreateSlider(category, setting, options, tooltip)
+end
+
+-- The game's own two damage meter switches, mirrored so that everything about
+-- the meter is on one page. They are the CVars Blizzard's Gameplay
+-- Enhancements page edits, read and written through C_CVar under our own
+-- setting names so nothing collides with Blizzard's registration of the same
+-- CVars. The labels and tooltips are Blizzard's strings, so they read the same
+-- in every locale, and the section says whose settings these are.
+local function AddBlizzardCVarCheckbox(cvar, variableKey, label, tooltip)
+    local setting = Settings.RegisterProxySetting(category, "DMC_blizzard_" .. variableKey,
+        Settings.VarType.Boolean, label, true,
+        function() return C_CVar.GetCVarBool(cvar) end,
+        function(value)
+            -- SetCVar signals refusal by returning false rather than by
+            -- throwing, and the meter's enable switch is one it can refuse in
+            -- combat - say so rather than show a box that silently reverts.
+            local ok, result = pcall(C_CVar.SetCVar, cvar, value and "1" or "0")
+            if not ok or result == false then
+                ns.Print("the game refused to change " .. label .. " right now")
+            end
+        end)
+
+    Settings.CreateCheckbox(category, setting, function()
+        local isAvailable, failureReason = C_DamageMeter.IsDamageMeterAvailable()
+        local text = tooltip .. "|n|n|cff808080The game's own setting, from Gameplay Enhancements. Shown here so the meter is configured in one place.|r"
+        if not isAvailable then
+            text = text .. "|n|n" .. failureReason
+        end
+        return text
+    end)
+end
+
+local function BuildBlizzardOptions()
+    if categoryLayout and CreateSettingsListSectionHeaderInitializer then
+        categoryLayout:AddInitializer(CreateSettingsListSectionHeaderInitializer(DAMAGE_METER_LABEL .. " (Blizzard)"))
+    end
+
+    AddBlizzardCVarCheckbox("damageMeterEnabled", "enabled", ENABLE_DAMAGE_METER, ENABLE_DAMAGE_METER_TOOLTIP)
+    AddBlizzardCVarCheckbox("damageMeterResetOnNewInstance", "autoReset", AUTO_RESET_DAMAGE_METER, AUTO_RESET_DAMAGE_METER_TOOLTIP)
 end
 
 local function BuildBehaviourOptions()
@@ -93,6 +133,8 @@ local function BuildBehaviourOptions()
         end
         return container:GetData()
     end, "Which layer the meter draws on. Raise it if another addon covers it.")
+
+    BuildBlizzardOptions()
 end
 
 -- Settings.OpenToCategory reaches the protected OpenSettingsPanel, which an
@@ -109,7 +151,7 @@ function Config.Open()
 end
 
 function Config.Enable()
-    category = Settings.RegisterVerticalLayoutCategory("DamageMeterCompanion")
+    category, categoryLayout = Settings.RegisterVerticalLayoutCategory("DamageMeterCompanion")
     BuildBehaviourOptions()
     Settings.RegisterAddOnCategory(category)
 
