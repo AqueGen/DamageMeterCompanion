@@ -186,7 +186,9 @@ function Snap.ApplyLink(index)
     local window = DamageMeter:GetSessionWindow(index)
     local target = link and DamageMeter:GetSessionWindow(link.to)
 
-    if not link or not window or not target or not target:IsShown() then
+    -- SetLink refuses a self-link, but a hand-edited saved variable reaches
+    -- here through ApplyAll at login and would anchor a frame to itself.
+    if not link or link.to == index or not window or not target or not target:IsShown() then
         return
     end
 
@@ -215,7 +217,7 @@ function Snap.ApplyAll()
 end
 
 -- Every validation lives here rather than at the call site, because the
--- settings panel in Task 9 sets links too. A link to the primary window, a
+-- settings panel in Task 9 sets links too. A link from the primary window, a
 -- self-link, or one that closes a cycle is refused: the first cannot be
 -- applied, the second is a frame anchored to itself, and the third would be
 -- persisted past the check that exists to prevent it.

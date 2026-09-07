@@ -136,16 +136,24 @@ local function AddWindowEntries(rootDescription, sessionWindow)
     local newWindow = rootDescription:CreateButton(DAMAGE_METER_SHOW_NEW_WINDOW, function()
         DamageMeter:ShowNewSecondarySessionWindow()
     end)
-    newWindow:SetEnabled(DamageMeter:CanShowNewSecondarySessionWindow())
+    -- The predicate, not its result: only a function is re-polled while the
+    -- menu stays open, which is what Blizzard's own menu passes here.
+    newWindow:SetEnabled(function() return DamageMeter:CanShowNewSecondarySessionWindow() end)
 
     local hideWindow = rootDescription:CreateButton(DAMAGE_METER_HIDE_WINDOW, function()
         DamageMeter:HideSessionWindow(sessionWindow)
     end)
-    hideWindow:SetEnabled(DamageMeter:CanHideSessionWindow(sessionWindow))
+    hideWindow:SetEnabled(function() return DamageMeter:CanHideSessionWindow(sessionWindow) end)
 
     rootDescription:CreateButton(DAMAGE_METER_RESET_ALL_SESSIONS, function()
         C_DamageMeter.ResetAllCombatSessions()
     end)
+
+    if ns.Config and ns.Config.Open then
+        rootDescription:CreateButton(SETTINGS, function()
+            ns.Config.Open()
+        end)
+    end
 end
 
 -- Replaces the OnClick Blizzard installed in InitEntry immediately above; the

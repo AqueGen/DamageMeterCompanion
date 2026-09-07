@@ -12,16 +12,9 @@ local function CancelPending()
     end
 end
 
--- Sources that carry a death recap open the death recap UI instead of the
--- source window, which would be hostile on a mere hover. deathRecapID is
--- documented NeverSecret, so reading it in combat is safe.
-local function OpensDeathRecap(elementData)
-    return type(elementData.deathRecapID) == "number" and elementData.deathRecapID ~= 0
-end
-
 local function OnInitEntry(sessionWindow, frame, elementData)
     frame:SetScript("OnEnter", function()
-        if not ns.db.hover or OpensDeathRecap(elementData) then
+        if not ns.db.hover or ns.HasDeathRecap(elementData) then
             return
         end
 

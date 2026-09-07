@@ -46,7 +46,7 @@ end)
 describe("Format.SelectValues", function()
     it("returns only the main value in Minimal", function()
         local main, parenthetical, percentage = Format.SelectValues({
-            numberDisplayType = Enum.DamageMeterNumbers.Minimal,
+            GetNumberDisplayType = function() return Enum.DamageMeterNumbers.Minimal end,
             value = 100, valuePerSecond = 10, sessionTotalValue = 400,
         })
 
@@ -57,7 +57,7 @@ describe("Format.SelectValues", function()
 
     it("adds the rate in Compact", function()
         local main, parenthetical, percentage = Format.SelectValues({
-            numberDisplayType = Enum.DamageMeterNumbers.Compact,
+            GetNumberDisplayType = function() return Enum.DamageMeterNumbers.Compact end,
             value = 100, valuePerSecond = 10, sessionTotalValue = 400,
         })
 
@@ -68,7 +68,7 @@ describe("Format.SelectValues", function()
 
     it("adds the share in Complete", function()
         local main, parenthetical, percentage = Format.SelectValues({
-            numberDisplayType = Enum.DamageMeterNumbers.Complete,
+            GetNumberDisplayType = function() return Enum.DamageMeterNumbers.Complete end,
             value = 100, valuePerSecond = 10, sessionTotalValue = 400,
         })
 
@@ -79,7 +79,7 @@ describe("Format.SelectValues", function()
 
     it("swaps main and parenthetical when the rate is primary", function()
         local main, parenthetical = Format.SelectValues({
-            numberDisplayType = Enum.DamageMeterNumbers.Compact,
+            GetNumberDisplayType = function() return Enum.DamageMeterNumbers.Compact end,
             value = 100, valuePerSecond = 10, showsValuePerSecondAsPrimary = true,
         })
 
@@ -89,7 +89,7 @@ describe("Format.SelectValues", function()
 
     it("drops the rate when the entry suppresses it", function()
         local _, parenthetical = Format.SelectValues({
-            numberDisplayType = Enum.DamageMeterNumbers.Compact,
+            GetNumberDisplayType = function() return Enum.DamageMeterNumbers.Compact end,
             value = 100, valuePerSecond = 10, suppressValuePerSecond = true,
         })
 
@@ -98,7 +98,7 @@ describe("Format.SelectValues", function()
 
     it("reports a zero share when the session total is zero", function()
         local _, _, percentage = Format.SelectValues({
-            numberDisplayType = Enum.DamageMeterNumbers.Complete,
+            GetNumberDisplayType = function() return Enum.DamageMeterNumbers.Complete end,
             value = 100, sessionTotalValue = 0,
         })
 

@@ -27,8 +27,38 @@ function Presence.ComputeAlpha(editModeAlpha, idleFactor, isHovered)
     return editModeAlpha * idleFactor
 end
 
+local sourceWindowWatchers = {}
+
+-- Blizzard fires nothing when the cursor leaves the breakdown, so while it
+-- holds the mouse we poll until it does not. The ticker exists only for that
+-- window and only for as long as the cursor is inside it.
+local function WatchSourceWindow(window)
+    if sourceWindowWatchers[window] then
+        return
+    end
+
+    sourceWindowWatchers[window] = C_Timer.NewTicker(0.2, function(ticker)
+        if window:GetSourceWindow():IsMouseOver() then
+            return
+        end
+
+        ticker:Cancel()
+        sourceWindowWatchers[window] = nil
+        Presence.ApplyAlpha(window)
+    end)
+end
+
 function Presence.ApplyAlpha(window)
-    window:SetAlpha(Presence.ComputeAlpha(DamageMeter:GetWindowAlpha(), ns.db.idleAlpha, hovered[window]))
+    -- The source window sits outside the session window's rect, so Blizzard's
+    -- own mouse-over tracking goes false the moment the cursor crosses into the
+    -- breakdown. It is still the same hover as far as the user is concerned.
+    local isHovered = hovered[window] or window:GetSourceWindow():IsMouseOver()
+
+    if not hovered[window] and isHovered then
+        WatchSourceWindow(window)
+    end
+
+    window:SetAlpha(Presence.ComputeAlpha(DamageMeter:GetWindowAlpha(), ns.db.idleAlpha, isHovered))
 end
 
 function Presence.ApplyAlphaToAll()
@@ -95,6 +125,14 @@ function Presence.Enable()
     -- re-apply through our path so the idle state survives it. DamageMeter
     -- already exists, so this is an instance hook.
     ns.HookInstance(DamageMeter, "OnWindowAlphaChanged", Presence.ApplyAlphaToAll)
+
+    -- A window created later - through the binding or Show new window - is
+    -- given the Edit Mode alpha by SetupSessionWindow and carries its source
+    -- window's own HIGH strata, so both have to be re-applied for it.
+    ns.HookInstance(DamageMeter, "SetupSessionWindow", function()
+        Presence.ApplyAlphaToAll()
+        Presence.ApplyStrata()
+    end)
 
     Presence.ApplyAlphaToAll()
     Presence.ApplyStrata()

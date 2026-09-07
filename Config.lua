@@ -59,6 +59,13 @@ local function BuildBehaviourOptions()
             -- Our text is written from a post-hook on UpdateValue, so nothing
             -- already on screen changes until something re-renders it. Out of
             -- combat that could be minutes, which would read as a dead toggle.
+            -- In combat there is nothing to repaint - the values are secret and
+            -- the formatting does not apply - and Refresh compares them, so
+            -- calling it from our tainted stack would be all risk and no gain.
+            if UnitAffectingCombat("player") then
+                return
+            end
+
             ns.ForEachSessionWindow(function(window)
                 window:Refresh(ScrollBoxConstants.RetainScrollPosition)
                 window:GetSourceWindow():Refresh(ScrollBoxConstants.RetainScrollPosition)
@@ -72,7 +79,8 @@ local function BuildBehaviourOptions()
         "How close an edge must be, in pixels, before it snaps.", 5, 40, 1)
 
     AddSlider("idleAlpha", "Idle transparency",
-        "How visible the meter is when the mouse is not on it, as a fraction of the Edit Mode transparency.",
+        "How visible the meter is when the mouse is not on it, as a fraction of the Edit Mode transparency. "
+            .. "A window set to uninteractable stays at the idle value, because its mouse is disabled.",
         0.1, 1, 0.05, "%.2f", function()
             ns.Presence.ApplyAlphaToAll()
         end)

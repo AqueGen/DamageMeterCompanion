@@ -213,13 +213,13 @@ The window half is a canvas subcategory holding one row per session window, thre
 | Column | Window 1 (primary) | Windows 2-3 |
 | --- | --- | --- |
 | Shown | read-only, always on | checkbox, calls `ShowNewSecondarySessionWindow` / `HideSessionWindow` |
-| Type | dropdown, same content as the context menu | same |
-| Session | dropdown, Overall / Current / segment | same |
 | Width, Height | read-only, with a note that Edit Mode owns it | numeric entry, clamped to the resize bounds |
 | Attached to | read-only "-" | dropdown of the other windows plus "none", and the edge to attach on |
 | Match width, Match height | read-only | two checkboxes |
 
 The primary window's size and position cells are read-only because `CanMoveOrResizeSessionWindow` returns false for it - the panel says so in place rather than offering a control that would do nothing.
+
+The type and segment columns this table originally carried were dropped during Task 9, on the same reasoning the Attached-to column was: the right-click menu already changes both in fewer clicks than opening a settings page, and a second way to do one thing is worse than one good way. What the panel is for is the state the menu cannot show at a glance - which windows exist, how big they are, and what is attached to what.
 
 Editing a size cell calls `SetSize` on the window, which trips the `OnSizeChanged` hook and propagates to anything matched to it, so there is one code path for sizing regardless of where the change came from.
 

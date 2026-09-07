@@ -32,7 +32,9 @@ end
 -- file-local and cannot be reused.
 function Format.SelectValues(entry)
     local numbers = Enum.DamageMeterNumbers
-    local displayType = entry.numberDisplayType or numbers.Minimal
+    -- The method, not the field: DamageMeterSpellEntryMixin overrides it to
+    -- force Complete, and the field is nil on every spell row.
+    local displayType = entry:GetNumberDisplayType()
 
     local main
     if entry.valuePerSecond and entry.showsValuePerSecondAsPrimary then
@@ -80,6 +82,10 @@ end
 -- leaves the original string in place.
 local function OnUpdateValue(entry)
     if not ns.db.format then
+        return
+    end
+
+    if ns.HasDeathRecap(entry) then
         return
     end
 

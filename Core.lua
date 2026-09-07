@@ -46,6 +46,14 @@ function ns.IsAnySecret(...)
     return false
 end
 
+-- Rows that carry a death recap render a timestamp rather than a number, and
+-- clicking one opens the death recap UI instead of the breakdown. Both the
+-- hover path and the formatting path have to leave them alone. deathRecapID is
+-- documented NeverSecret, so reading it in combat is safe.
+function ns.HasDeathRecap(source)
+    return type(source.deathRecapID) == "number" and source.deathRecapID ~= 0
+end
+
 function ns.ForEachSessionWindow(func)
     for index = 1, 3 do
         local window = DamageMeter:GetSessionWindow(index)
