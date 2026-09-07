@@ -158,18 +158,62 @@ function ns.Probe()
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
 end
 
+-- Reports, per window, whether our per-window hooks actually landed on it.
+-- Written because the right-click menu and the number formatting both worked
+-- on window 1 and on nothing else, and both are installed per frame - so the
+-- question is which frames we reached, not what the handlers do.
+function ns.Diagnose()
+    ns.Print(("snap %s, threshold %d, menu %s, format %s, hover %s"):format(
+        tostring(ns.db.snap), ns.db.snapThreshold,
+        tostring(ns.db.menu), tostring(ns.db.format), tostring(ns.db.hover)))
+
+    local indices = ns.Windows.Indices()
+    ns.Print("registry sees " .. #indices .. " window(s)")
+
+    for _, index in ipairs(indices) do
+        local window = ns.Windows.Get(index)
+        local hookCount = 0
+
+        for _ in pairs(window.dmtHooks or {}) do
+            hookCount = hookCount + 1
+        end
+
+        local entries, hookedEntries = 0, 0
+        window:GetScrollBox():ForEachFrame(function(entry)
+            entries = entries + 1
+            if entry.dmtHooks then
+                hookedEntries = hookedEntries + 1
+            end
+        end)
+
+        local link = ns.charDb.links[index]
+
+        ns.Print(("window %d: %s, shown %s, noninteractive %s, our hooks %d, entries %d, entry hooks %d, link %s"):format(
+            index,
+            ns.Windows.IsOurs(index) and "ours" or "blizzard",
+            tostring(window:IsShown()),
+            tostring(window:IsNonInteractive()),
+            hookCount,
+            entries,
+            hookedEntries,
+            link and ("to " .. tostring(link.to)) or "none"))
+    end
+end
+
 local function HandleSlashCommand(input)
     local command = string.lower(string.trim(input or ""))
 
     if command == "probe" then
         ns.Probe()
+    elseif command == "diag" then
+        ns.Diagnose()
     elseif command == "hover" or command == "snap" or command == "menu" or command == "format" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: probe, hover, menu, format, snap")
+        ns.Print("commands: diag, probe, hover, menu, format, snap")
     end
 end
 
