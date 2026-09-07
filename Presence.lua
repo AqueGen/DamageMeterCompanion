@@ -31,7 +31,7 @@ function Presence.ApplyAlpha(window)
     window:SetAlpha(Presence.ComputeAlpha(DamageMeter:GetWindowAlpha(), ns.db.idleAlpha, hovered[window]))
 end
 
-local function ApplyAlphaToAll()
+function Presence.ApplyAlphaToAll()
     ns.ForEachSessionWindow(Presence.ApplyAlpha)
 end
 
@@ -94,9 +94,9 @@ function Presence.Enable()
     -- An Edit Mode transparency change pushes a raw alpha onto every window;
     -- re-apply through our path so the idle state survives it. DamageMeter
     -- already exists, so this is an instance hook.
-    ns.HookInstance(DamageMeter, "OnWindowAlphaChanged", ApplyAlphaToAll)
+    ns.HookInstance(DamageMeter, "OnWindowAlphaChanged", Presence.ApplyAlphaToAll)
 
-    ApplyAlphaToAll()
+    Presence.ApplyAlphaToAll()
     Presence.ApplyStrata()
 end
 

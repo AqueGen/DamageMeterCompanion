@@ -254,6 +254,12 @@ function Snap.ClearLink(index)
 
     local left, bottom, width, height = window:GetRect()
 
+    -- A hidden window may have no resolved rect; there is nothing to hand back
+    -- in that case, and the link is already gone.
+    if not left then
+        return
+    end
+
     window:ClearAllPoints()
     window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
     window:SetSize(width, height)
