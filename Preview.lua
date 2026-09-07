@@ -16,9 +16,14 @@ function Preview.BarRects(rect, target, result, thickness)
         local movingEdge = (result.point == "TOPLEFT") and rect.top or rect.bottom
         local targetEdge = (result.relPoint == "BOTTOMLEFT") and target.bottom or target.top
 
+        -- Which way is inward depends on which edge was picked: subtracting the
+        -- thickness only moves into the window when the edge is its top.
+        local movingBottom = (result.point == "TOPLEFT") and (movingEdge - thickness) or movingEdge
+        local targetBottom = (result.relPoint == "BOTTOMLEFT") and targetEdge or (targetEdge - thickness)
+
         return
-            { left = left, bottom = movingEdge - thickness, width = width, height = thickness },
-            { left = left, bottom = targetEdge, width = width, height = thickness }
+            { left = left, bottom = movingBottom, width = width, height = thickness },
+            { left = left, bottom = targetBottom, width = width, height = thickness }
     end
 
     local bottom = math.max(rect.bottom, target.bottom)
@@ -28,9 +33,12 @@ function Preview.BarRects(rect, target, result, thickness)
     local movingEdge = (result.point == "TOPLEFT") and rect.left or rect.right
     local targetEdge = (result.relPoint == "TOPRIGHT") and target.right or target.left
 
+    local movingLeft = (result.point == "TOPLEFT") and movingEdge or (movingEdge - thickness)
+    local targetLeft = (result.relPoint == "TOPRIGHT") and (targetEdge - thickness) or targetEdge
+
     return
-        { left = movingEdge, bottom = bottom, width = thickness, height = height },
-        { left = targetEdge - thickness, bottom = bottom, width = thickness, height = height }
+        { left = movingLeft, bottom = bottom, width = thickness, height = height },
+        { left = targetLeft, bottom = bottom, width = thickness, height = height }
 end
 
 ns.RegisterModule("Preview", Preview)

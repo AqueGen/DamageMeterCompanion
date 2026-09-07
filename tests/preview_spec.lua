@@ -54,4 +54,32 @@ describe("Preview.BarRects", function()
         assert.are.equal(300, movingBar.left)
         assert.are.equal(200, movingBar.width)
     end)
+
+    it("keeps the bars inside both windows when snapping above", function()
+        local moving = Rect(2, 100, 600, 400, 200)
+        local target = Rect(1, 100, 300, 400, 200)
+        local result = { index = 1, point = "BOTTOMLEFT", relPoint = "TOPLEFT", axis = "vertical" }
+
+        local movingBar, targetBar = Preview.BarRects(moving, target, result, 3)
+
+        -- Moving occupies y 400 to 600, so its bar sits on 400 upwards.
+        assert.are.equal(400, movingBar.bottom)
+        -- Target occupies y 100 to 300, so its bar sits just under 300.
+        assert.are.equal(297, targetBar.bottom)
+        assert.are.equal(400, movingBar.width)
+    end)
+
+    it("keeps the bars inside both windows when snapping to the left", function()
+        local moving = Rect(2, 50, 500, 400, 200)
+        local target = Rect(1, 497, 500, 400, 200)
+        local result = { index = 1, point = "TOPRIGHT", relPoint = "TOPLEFT", axis = "horizontal" }
+
+        local movingBar, targetBar = Preview.BarRects(moving, target, result, 3)
+
+        -- Moving occupies x 50 to 450, so its bar sits just inside 450.
+        assert.are.equal(447, movingBar.left)
+        -- Target occupies x 497 to 897, so its bar sits on 497 rightwards.
+        assert.are.equal(497, targetBar.left)
+        assert.are.equal(200, movingBar.height)
+    end)
 end)
