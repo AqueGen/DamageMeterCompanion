@@ -2,6 +2,7 @@ local addonName, ns = ...
 
 ns.defaults = {
     format = true,
+    menu = true,
     snap = true,
     snapThreshold = 50,
     idleAlpha = 0.4,
@@ -207,8 +208,8 @@ end
 
 -- One line per window: what the addon can see about it, for bug reports.
 function ns.Diagnose()
-    ns.Print(("snap %s, threshold %d, format %s"):format(
-        tostring(ns.db.snap), ns.db.snapThreshold, tostring(ns.db.format)))
+    ns.Print(("snap %s, threshold %d, format %s, menu %s"):format(
+        tostring(ns.db.snap), ns.db.snapThreshold, tostring(ns.db.format), tostring(ns.db.menu)))
 
     for _, index in ipairs(ns.Windows.Indices()) do
         local window = ns.Windows.Get(index)
@@ -234,13 +235,13 @@ local function HandleSlashCommand(input)
         ns.Probe()
     elseif command == "diag" then
         ns.Diagnose()
-    elseif command == "snap" or command == "format" then
+    elseif command == "snap" or command == "format" or command == "menu" then
         ns.db[command] = not ns.db[command]
         ns.Print(command .. ": " .. tostring(ns.db[command]))
     elseif command == "" then
         ns.Config.Open()
     else
-        ns.Print("commands: diag, probe, format, snap")
+        ns.Print("commands: diag, probe, format, snap, menu")
     end
 end
 

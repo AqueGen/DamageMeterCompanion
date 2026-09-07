@@ -32,6 +32,8 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 **The settings panel does not offer type, segment or an attach control**: the header dropdowns switch type and segment untainted, and attaching is a drag gesture.
 
+**The right-click menu came back as Blizzard's own menu.** A `SecureActionButtonTemplate` overlay over each window's scroll box, registered for the right button only, `type2 = "click"` forwarding to the window's type dropdown, with lock, hide, reset and settings appended to that menu through `Menu.ModifyMenu` (their callbacks are ours and each is a clean call; the segment is not appended because its switch is a Refresh from our stack). A hardware right-click makes the engine click Blizzard's button in the secure context hardware input gets, so the menu is built and the type switch runs in Blizzard's closures, untainted - the one way a type switch from a right-click can be clean, and why it works in combat. Left button and mouse motion pass through (`SetPassThroughButtons`, `SetPropagateMouseMotion`, both protected and therefore only called out of combat, where the overlay is created). The addon's own menu is gone for good: its callbacks were ours, and a `Refresh` from our stack is the thing the rule forbids.
+
 **These were considered and left out of scope**, each because Blizzard already covers it or because it is analysis rather than control: per-window scale, auto-switch to current segment, reset window position, skins and colours, display bookmarks, report-to-chat, scroll bindings, and the update interval.
 
 ## Where the code deliberately differs from Blizzard's

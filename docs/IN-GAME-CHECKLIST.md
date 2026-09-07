@@ -18,6 +18,13 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 - [ ] Turning Readable numbers off puts Blizzard's text back within a moment; on again re-formats.
 - [ ] A full pull with the breakdown open and closed, then leave combat: **no `attempt to compare` warnings**.
 
+## 2b. Right-click
+
+- [ ] Right-clicking a bar opens the type menu with Lock, Hide, Reset and Settings appended; picking a type switches the window and the header agrees; Lock/Hide/Reset do what the gear menu's do.
+- [ ] Left-click still opens the breakdown, hover tooltips on icons still work, dragging the window still works.
+- [ ] In combat: right-click opens the menu and switching type works, BugSack stays empty.
+- [ ] Turning the option off removes the right-click (out of combat).
+
 ## 3. Snapping and size matching
 
 - [ ] Dragging window 2 so its top edge nears the bottom of window 1 shows the green bars, and on release it sits flush and matches window 1's width.

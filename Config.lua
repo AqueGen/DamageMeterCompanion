@@ -84,6 +84,9 @@ local function BuildBlizzardOptions()
 end
 
 local function BuildBehaviourOptions()
+    AddCheckbox("menu", "Right-click opens the type menu",
+        "Right-clicking a bar opens that window's type menu - Damage, Healing, Actions - plus lock, hide, reset and settings, where the cursor is. The click is forwarded to Blizzard's own button, so it works in combat. The segment stays on its header dropdown.")
+
     AddCheckbox("format", "Readable numbers",
         "Show 56.72M instead of 56716 K. The percentage is shown only out of combat, because it is the one part that needs arithmetic on values that are Secret in combat.",
         function()
