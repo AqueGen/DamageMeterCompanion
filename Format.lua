@@ -172,25 +172,14 @@ function Format.Enable()
 
     options = { config = config }
 
-    -- In combat the meter refreshes on every one of its events, many times a
-    -- second, and each refresh writes Blizzard's own string back onto the bar.
-    -- Repainting on the interval left their format on screen between our
-    -- passes - visible as the numbers flickering between 3267 K and 3.27M.
-    -- Painting every frame, after the frame's events and before its draw,
-    -- means theirs is never what gets drawn. Out of combat nothing refreshes
-    -- the bars, so the interval is enough there and the per-frame walk is
-    -- skipped.
-    ns.OnFrame(function()
-        if InCombatLockdown() then
-            Format.Sweep()
-        end
-    end)
-
-    ns.OnSweep(function()
-        if not InCombatLockdown() then
-            Format.Sweep()
-        end
-    end)
+    -- Every frame, in and out of combat. In combat the meter rewrites every
+    -- bar on each of its events, many times a second; out of combat it does
+    -- so whenever a click opens the breakdown. An interval sweep left
+    -- Blizzard's format on screen between our passes either way - visible as
+    -- the numbers flickering between 3267 K and 3.27M. Painting every frame,
+    -- after the frame's events and before its draw, means theirs is never
+    -- what gets drawn. The walk is a handful of visible rows.
+    ns.OnFrame(Format.Sweep)
 end
 
 ns.RegisterModule("Format", Format)
