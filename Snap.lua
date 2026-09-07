@@ -147,14 +147,14 @@ local function PushSizeFrom(index, visited)
 
     visited[index] = true
 
-    local source = DamageMeter:GetSessionWindow(index)
+    local source = Windows.Get(index)
     if not source then
         return
     end
 
     for otherIndex, link in pairs(GetLinks()) do
         if link.to == index then
-            local target = DamageMeter:GetSessionWindow(otherIndex)
+            local target = Windows.Get(otherIndex)
             if target and target:CanMoveOrResize() then
                 if link.matchWidth then
                     target:SetWidth(Snap.Clamp(source:GetWidth(), Snap.MIN_WIDTH, Snap.MAX_WIDTH))
@@ -184,8 +184,8 @@ end
 
 function Snap.ApplyLink(index)
     local link = GetLinks()[index]
-    local window = DamageMeter:GetSessionWindow(index)
-    local target = link and DamageMeter:GetSessionWindow(link.to)
+    local window = Windows.Get(index)
+    local target = link and Windows.Get(link.to)
 
     -- SetLink refuses a self-link, but a hand-edited saved variable reaches
     -- here through ApplyAll at login and would anchor a frame to itself.
@@ -223,7 +223,7 @@ end
 -- applied, the second is a frame anchored to itself, and the third would be
 -- persisted past the check that exists to prevent it.
 function Snap.SetLink(index, link)
-    local window = DamageMeter:GetSessionWindow(index)
+    local window = Windows.Get(index)
 
     if not window
         or not DamageMeter:CanMoveOrResizeSessionWindow(window)
@@ -243,7 +243,7 @@ end
 -- this it would keep following that window until the next reload and then come
 -- back at Blizzard's default offset with nothing to move it.
 function Snap.ClearLink(index)
-    local window = DamageMeter:GetSessionWindow(index)
+    local window = Windows.Get(index)
 
     if not GetLinks()[index] then
         return
