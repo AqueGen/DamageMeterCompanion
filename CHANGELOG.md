@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.7.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.6.0...v0.7.0) (2026-09-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* the addon is no longer MIT licensed. Versions published from now on may not be copied, modified or reused without written permission.
+* the addon is no longer MIT licensed. Versions published from now on may not be copied, modified or reused without written permission.
+
+### Features
+
+* copy a Warcraft Logs link from any player menu ([#5](https://github.com/AqueGen/DamageMeterCompanion/issues/5)) ([4c8a075](https://github.com/AqueGen/DamageMeterCompanion/commit/4c8a07534bdc34f1b39a27a7f355407484c70c1f))
+
+
+### Miscellaneous Chores
+
+* ship the agent notice, and drop MIT for all rights reserved ([#4](https://github.com/AqueGen/DamageMeterCompanion/issues/4)) ([4351083](https://github.com/AqueGen/DamageMeterCompanion/commit/4351083ee4651857d19ebc13ca9300d1293f5021))
+
 ## [0.6.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.5.0...v0.6.0) (2026-09-08)
 
 
