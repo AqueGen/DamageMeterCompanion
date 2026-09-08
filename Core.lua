@@ -6,7 +6,9 @@ ns.defaults = {
     snapThreshold = 50,
     idleAlpha = 0.4,
     strata = "MEDIUM",
-    logLink = true,
+    -- Off by default: this addon is about the meter, and a player who installed
+    -- it for window snapping did not ask for entries in every unit menu.
+    logLink = false,
 }
 
 ns.charDefaults = {

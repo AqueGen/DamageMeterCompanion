@@ -125,9 +125,10 @@ end
 
 -- Switched off leaves the menus exactly as Blizzard built them, which is the
 -- only honest way to be off: a menu entry that appears and refuses is worse
--- than no entry.
+-- than no entry. Opt-in, so the test is truthiness rather than "not false" -
+-- a profile from before this feature has no key at all and must stay silent.
 local function wanted()
-    if not ns.db or ns.db.logLink == false then
+    if not ns.db or not ns.db.logLink then
         return false
     end
     -- Not in combat, for the same reason the settings entry is out-of-combat
