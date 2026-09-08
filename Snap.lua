@@ -285,9 +285,12 @@ function Snap.ApplyLink(index, pushSize)
     local x, y = Snap.OffsetForGap(link.point, link.relPoint, link.gap)
     window:SetPoint(link.point, target, link.relPoint, x, y)
 
-    -- Left user-placed on purpose. Blizzard's frame cache then restores the
-    -- window's size at login as well as its position. The cached absolute
-    -- point is harmless: this anchor goes back on top of it.
+    -- User-placed on purpose: Blizzard's frame cache saves only such frames,
+    -- and it saves their size along with their position - which is how a
+    -- matched size comes back after a reload without us setting it. The
+    -- cached absolute point is harmless: this anchor goes back on top of it.
+    window:SetUserPlaced(true)
+
     if pushSize then
         Snap.PushSize(link.to)
     end
@@ -509,8 +512,17 @@ function Snap.Enable()
     end)
 
     -- Blizzard restores its saved frame positions during login; applying on the
-    -- next frame puts our anchors on top of that rather than under it.
+    -- next frame puts our anchors on top of that rather than under it. Linked
+    -- windows are user-placed now, so the cache restores an absolute point for
+    -- them too - once more after PLAYER_ENTERING_WORLD covers the case where
+    -- that lands after the first pass. SetPoint only, so repeating is free.
     C_Timer.After(0, Snap.ApplyAll)
+
+    local reapply = CreateFrame("Frame")
+    reapply:RegisterEvent("PLAYER_ENTERING_WORLD")
+    reapply:SetScript("OnEvent", function()
+        C_Timer.After(0, Snap.ApplyAll)
+    end)
 end
 
 ns.RegisterModule("Snap", Snap)
