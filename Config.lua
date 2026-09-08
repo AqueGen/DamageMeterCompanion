@@ -131,6 +131,14 @@ local function BuildBehaviourOptions()
     end, "Which layer the meter draws on. Raise it if another addon covers it.")
 
     BuildBlizzardOptions()
+
+    -- Author's mark, last thing in the category. A section header is the only
+    -- plain-text initializer Blizzard's settings list offers, and it is guarded
+    -- because a client without it should lose the mark rather than the panel.
+    if categoryLayout and CreateSettingsListSectionHeaderInitializer then
+        categoryLayout:AddInitializer(
+            CreateSettingsListSectionHeaderInitializer("|cFF0057B7Made|r |cFFFFD700in Ukraine|r"))
+    end
 end
 
 -- The gear dropdown on every meter window is tagged, which is Blizzard's own
