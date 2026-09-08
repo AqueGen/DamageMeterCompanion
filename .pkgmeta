@@ -18,7 +18,8 @@ ignore:
   - .superpowers
   - tools
   - CLAUDE.md
-  - AGENTS.md
+  # AGENTS.md is deliberately NOT ignored: the notice only does its job where
+  # an agent actually reads the addon, which is the installed folder.
   - docs
   - tests
   - release-please-config.json
