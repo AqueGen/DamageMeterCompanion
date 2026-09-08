@@ -76,6 +76,12 @@ end
 -- tainted code - documented AllowedWhenTainted, and the exact chain Details
 -- paints its own bars with. What we get back is a Secret string we cannot read,
 -- which is fine: the bar can.
+--
+-- The layout is Blizzard's own, taken from the same global strings and the
+-- same rounding their GetEntryValueText uses (DamageMeterEntry.lua:114-124),
+-- so each of the three Numbers modes reads exactly as it does without the
+-- addon; only the abbreviation of the amounts differs. The literals are the
+-- fallback for a client that has not defined a string.
 function Format.Compose(main, parenthetical, percentage)
     if not Present(main) then
         return nil
@@ -85,14 +91,14 @@ function Format.Compose(main, parenthetical, percentage)
     local parentheticalText = Present(parenthetical) and AbbreviateNumbers(parenthetical, options) or nil
 
     if parentheticalText and percentage then
-        return ("%s (%s) %.1f%%"):format(mainText, parentheticalText, percentage * 100)
+        return (DAMAGE_METER_ENTRY_FORMAT_COMPLETE or "%s (%s) %d%%"):format(mainText, parentheticalText, Round(percentage * 100))
     elseif percentage then
-        return ("%s %.1f%%"):format(mainText, percentage * 100)
+        return (DAMAGE_METER_ENTRY_FORMAT_COMPLETE_NO_PARENTHESIS or "%s %d%%"):format(mainText, Round(percentage * 100))
     elseif parentheticalText then
-        return ("%s (%s)"):format(mainText, parentheticalText)
+        return (DAMAGE_METER_ENTRY_FORMAT_COMPACT or "%s (%s)"):format(mainText, parentheticalText)
     end
 
-    return mainText
+    return (DAMAGE_METER_ENTRY_FORMAT_MINIMAL or "%s"):format(mainText)
 end
 
 local function Repaint(entry)

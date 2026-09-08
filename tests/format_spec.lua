@@ -24,6 +24,7 @@ _G.AbbreviateNumbers = function(value)
 end
 
 _G.CreateAbbreviateConfig = function() return {} end
+_G.Round = function(value) return math.floor(value + 0.5) end
 _G.CreateFrame = function() return { SetScript = function() end } end
 
 assert(loadfile("Format.lua"))("DamageMeterCompanion", ns)
@@ -85,12 +86,18 @@ describe("Format.Compose", function()
         assert.are.equal("#100 (#5)", Format.Compose(100, 5))
     end)
 
-    it("renders the complete form", function()
-        assert.are.equal("#100 (#5) 18.0%", Format.Compose(100, 5, 0.18))
+    it("renders the complete form with Blizzard's whole-number percentage", function()
+        assert.are.equal("#100 (#5) 18%", Format.Compose(100, 5, 0.184))
     end)
 
     it("renders a percentage without brackets", function()
-        assert.are.equal("#100 18.0%", Format.Compose(100, nil, 0.18))
+        assert.are.equal("#100 18%", Format.Compose(100, nil, 0.18))
+    end)
+
+    it("uses the client's format strings when they exist", function()
+        _G.DAMAGE_METER_ENTRY_FORMAT_COMPACT = "%s [%s]"
+        assert.are.equal("#100 [#5]", Format.Compose(100, 5))
+        _G.DAMAGE_METER_ENTRY_FORMAT_COMPACT = nil
     end)
 
     it("hands Secret values to the client routine and composes what comes back", function()
