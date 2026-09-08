@@ -169,34 +169,55 @@ local applyingSize = false
 --
 -- A locked window is skipped: the lock means the user asked for that window to
 -- stay put, and resizing it from a neighbour would break that promise.
+--
+-- A size is only set when it differs. Setting one runs the window's ScrollBox
+-- update inside our taint (ScrollBox.lua:119-129, 762-792): its data range
+-- fields and any rows it acquires are then ours, and every combat refresh
+-- logs a warning per row until reload. At login Blizzard's frame cache has
+-- already restored the matched sizes, so an equal size must be a no-op or
+-- every session would start tainted. Returns whether anything was set.
 local function PushSizeFrom(index, visited)
     if visited[index] then
-        return
+        return false
     end
 
     visited[index] = true
 
     local source = Windows.Get(index)
     if not source then
-        return
+        return false
     end
+
+    local changed = false
 
     for otherIndex, link in pairs(GetLinks()) do
         if link.to == index then
             local target = Windows.Get(otherIndex)
             if target and target:CanMoveOrResize() then
                 if link.matchWidth then
-                    target:SetWidth(Snap.Clamp(source:GetWidth(), Snap.MIN_WIDTH, Snap.MAX_WIDTH))
+                    local width = Snap.Clamp(source:GetWidth(), Snap.MIN_WIDTH, Snap.MAX_WIDTH)
+                    if math.abs(target:GetWidth() - width) > 0.5 then
+                        target:SetWidth(width)
+                        changed = true
+                    end
                 end
 
                 if link.matchHeight then
-                    target:SetHeight(Snap.Clamp(source:GetHeight(), Snap.MIN_HEIGHT, Snap.MAX_HEIGHT))
+                    local height = Snap.Clamp(source:GetHeight(), Snap.MIN_HEIGHT, Snap.MAX_HEIGHT)
+                    if math.abs(target:GetHeight() - height) > 0.5 then
+                        target:SetHeight(height)
+                        changed = true
+                    end
                 end
 
-                PushSizeFrom(otherIndex, visited)
+                if PushSizeFrom(otherIndex, visited) then
+                    changed = true
+                end
             end
         end
     end
+
+    return changed
 end
 
 -- The guard keeps the re-entrant OnSizeChanged events our own SetWidth and
@@ -210,8 +231,12 @@ function Snap.PushSize(index)
     end
 
     applyingSize = true
-    PushSizeFrom(index, {})
+    local changed = PushSizeFrom(index, {})
     applyingSize = false
+
+    if changed then
+        ns.RequestReload("size")
+    end
 end
 
 -- The gap always separates the two windows, so its sign follows from which
@@ -256,10 +281,11 @@ function Snap.ApplyLink(index)
     local x, y = Snap.OffsetForGap(link.point, link.relPoint, link.gap)
     window:SetPoint(link.point, target, link.relPoint, x, y)
 
-    -- Keeps our anchored position out of Blizzard's frame position cache, so
-    -- next login does not re-impose it as an absolute point.
-    window:SetUserPlaced(false)
-
+    -- Left user-placed on purpose. Blizzard's frame cache then restores the
+    -- window's size at login as well as its position, so PushSize below finds
+    -- the matched size already in place and sets nothing - a size set from
+    -- our stack at login would taint the window for the whole session. The
+    -- cached absolute point is harmless: this anchor goes back on top of it.
     Snap.PushSize(link.to)
 end
 
@@ -291,9 +317,9 @@ function Snap.SetLink(index, link)
 end
 
 -- Dropping a link has to hand the window back its own position. It is still
--- anchored to its old target and still flagged not-user-placed, so without
--- this it would keep following that window until the next reload and then come
--- back at Blizzard's default offset with nothing to move it.
+-- anchored to its old target, so without this it would keep following that
+-- window until the next reload. The size is left alone: the frame keeps it,
+-- and setting it from here would run the ScrollBox update in our taint.
 function Snap.ClearLink(index)
     local window = Windows.Get(index)
 
@@ -307,7 +333,7 @@ function Snap.ClearLink(index)
         return
     end
 
-    local left, bottom, width, height = window:GetRect()
+    local left, bottom = window:GetRect()
 
     -- A hidden window may have no resolved rect; there is nothing to hand back
     -- in that case, and the link is already gone.
@@ -317,7 +343,6 @@ function Snap.ClearLink(index)
 
     window:ClearAllPoints()
     window:SetPoint("BOTTOMLEFT", UIParent, "BOTTOMLEFT", left, bottom)
-    window:SetSize(width, height)
     window:SetUserPlaced(true)
 
 end

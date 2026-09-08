@@ -22,6 +22,8 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 **Cut on the evening of 2026-09-07, each a permanent taint source under that rule:** hover-to-open (`ShowSourceWindow` from our stack poisons the source window and its spell-entry pool); the right-click menu (its type and segment entries end in `Refresh`, and what remained duplicated the gear menu); windows beyond Blizzard's three (built entirely from addon code, tainted by construction, unfixable); showing a hidden window from a keybind (`SetupSessionWindow` runs two refreshes inside our taint; the panel's Shown box was put back at the user's request and offers a reload right after, which clears the taint because Blizzard restores the window itself at login); any `Refresh()` of our own. The analysis behind the cut, with every line, is the session's `opus-taint-analysis.md`; the in-game evidence was four distinct warning stacks over one afternoon.
 
+**Lock and size are kept, with a reload prompt, on the user's decision (2026-09-08).** Both go through Blizzard code that writes Lua state: `SetSessionWindowLocked` (`DamageMeter.lua:472-480`) writes `windowData.locked`, `isLocked` and re-runs `InitializeSettingsDropdown` (`DamageMeterSessionWindow.lua:442-467`), whose `SetupMenu` closure is then ours - opening the gear menu in combat hits the same `Menu.lua:999` Secret-rect error the type menu did. Any size we set fires the ScrollBox's `OnSizeChanged` (`ScrollBox.lua:119-129`), whose `Update` (`762-792`) writes the data range and, if more rows fit, acquires them through `AcquireInternal` (`ScrollBoxListView.lua:361-386`) and runs `InitEntry` inside our execution - the per-row warnings. Position is clean: nothing in Blizzard_DamageMeter reacts to a move, and the ScrollBox reacts only to size. A reload clears both, because Blizzard restores locks from saved data and sizes from its frame cache, so `ns.RequestReload` asks once per session after the first lock, size or show. Two changes make the reload actually clean: linked windows stay user-placed so the cache restores their size, and `PushSize` sets a size only when it differs - with both, the login pass finds the matched sizes already in place and sets nothing. Before this, every session with a matched link started tainted from the login `ApplyAll`.
+
 ## Product decisions
 
 **The panel does offer numeric size entry**, because that was the point of asking for it. Values are clamped to the window's resize bounds and the panel shows the clamped result rather than silently ignoring the request.
@@ -44,7 +46,7 @@ Written 2026-09-07, at the end of the first build. These are the forks where the
 
 Nothing here has been verified in a running game client - see `IN-GAME-CHECKLIST.md`. Only pure logic is unit-tested; frame-bound behaviour has no automated coverage.
 
-Hiding one of Blizzard's windows 2 and 3 is the only direction the addon offers. Showing runs Blizzard's setup inside our taint, so the row for a hidden slot says where to show it from instead.
+Hiding one of Blizzard's windows 2 and 3 is the only clean direction. Showing, locking and sizing run Blizzard's code inside our taint and are followed by a reload prompt.
 
 ## The rename
 

@@ -32,6 +32,8 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 - [ ] Dropping a window near a screen edge with no window near lands it flush; the bars show on the window's and the screen's edge.
 - [ ] Gap of 6 on a linked window separates the pair by six pixels and survives a reload.
 - [ ] `/reload` keeps every link and size.
+- [ ] **With a matched link in place, `/reload`, touch nothing, fight**: no reload popup at login and BugSack stays empty. This is the case that used to taint every session.
+- [ ] Resizing window 2 by its handle while window 3 matches it shows the reload popup once; after the reload, BugSack stays empty in the next fight.
 
 ## 4. Transparency and layer
 
@@ -53,7 +55,9 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 - [ ] The behaviour page has readable numbers, snapping, snap distance, idle transparency, layer, and at the bottom a Blizzard section with Enable Damage Meter and Auto Reset that mirror Gameplay Enhancements both ways.
 - [ ] The Windows page lists three rows. Ticking Shown on a hidden slot shows the window and offers a reload; after the reload the window is there and combat logs nothing. Window 1's size boxes route through Edit Mode; a size Edit Mode refuses prints a message.
 - [ ] Typing an out-of-range width comes back clamped. A locked window's boxes are greyed.
-- [ ] Lock per row, Lock all and Unlock all agree with the gear menu's lock state.
+- [ ] Lock per row, Lock all and Unlock all agree with the gear menu's lock state, and the first of them offers a reload once.
+- [ ] **Lock window 2 from the panel, reload, fight, open window 2's gear menu in combat**: it opens, BugSack stays empty. Without the reload the gear menu errors in combat.
+- [ ] **Type a size for window 2, reload, fight**: BugSack stays empty.
 - [ ] Hide on a row hides the window; the row stays.
 - [ ] Snapping two windows and reopening the page shows the link, gap and match flags; Detach drops it.
 - [ ] **After typing a size for window 1, open Edit Mode and press Save**: no "Interface action failed because of an addon".

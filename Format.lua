@@ -147,6 +147,12 @@ end
 -- Blizzard's own string and, called from here rather than from inside their
 -- render pass, compares nothing of ours.
 function Format.Restore()
+    -- In combat their GetValueText compares Secret amounts, which from our
+    -- stack is an error; the next Blizzard refresh restores the text anyway.
+    if InCombatLockdown() then
+        return
+    end
+
     ForEachEntry(function(entry)
         pcall(entry.UpdateValue, entry)
     end)

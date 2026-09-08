@@ -29,6 +29,8 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 On 12.x the meter's data is Secret to addons in combat, and anything an addon writes into Blizzard's meter windows taints them: their own refresh then logs a warning per row, in combat, until you reload. So this addon never opens Blizzard's own breakdown (click it - that is Blizzard's own, untainted handler), does not switch a window's type or segment (the header dropdowns do, untainted), does not create windows beyond Blizzard's three, and does not show a hidden window (the gear menu's Show new window does). Each of those was built, seen to taint the meter, and removed. The reasoning with line references is in `docs/DECISIONS.md`.
 
+Three things on the Windows page do go through Blizzard's code and taint it the same way: locking a window, setting a size, and showing a hidden slot. They stay because a reload clears them completely - Blizzard restores the lock, the size and the window itself at login. So the first time you use one of them in a session the addon offers a reload, once. Dragging, snapping and the gap are position only and never need it.
+
 No parsing, no storage, no analysis, no skins, no report-to-chat. Blizzard's meter is the meter. If you want a meter of your own, use Details.
 
 ## Development

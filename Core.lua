@@ -32,6 +32,33 @@ function ns.Print(message)
     print("|cff33ff99DamageMeterCompanion|r: " .. message)
 end
 
+-- One reload prompt per session. A lock, a size or a show that goes through
+-- Blizzard's own code runs it inside our taint (docs/DECISIONS.md), and a
+-- reload is what clears that: Blizzard restores the lock, the size and the
+-- window itself at login, untainted. Asking once is enough - the taint does
+-- not get worse, and the popup would otherwise follow every keystroke.
+local reloadRequested = false
+
+StaticPopupDialogs["DAMAGEMETERCOMPANION_RELOAD"] = {
+    text = "DamageMeterCompanion changed a window's %s through Blizzard's code. Until the UI is reloaded the meter carries the addon's taint and logs a warning per row in combat. Reload now?",
+    button1 = RELOADUI,
+    button2 = CANCEL,
+    OnAccept = function() ReloadUI() end,
+    timeout = 0,
+    whileDead = true,
+    hideOnEscape = true,
+    preferredIndex = 3,
+}
+
+function ns.RequestReload(what)
+    if reloadRequested then
+        return
+    end
+
+    reloadRequested = true
+    StaticPopup_Show("DAMAGEMETERCOMPANION_RELOAD", what)
+end
+
 function ns.IsAvailable()
     return DamageMeter ~= nil
         and DamageMeterSessionWindowMixin ~= nil

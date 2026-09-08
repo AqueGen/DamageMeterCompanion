@@ -210,7 +210,9 @@ local function CreateSizeBox(row, index, dimension)
             -- Windows.SetSize does the lock check and, for the primary window,
             -- the Edit Mode routing - so this box does not need to know which
             -- kind of window it is editing.
-            ns.Windows.SetSize(index, width, height)
+            if ns.Windows.SetSize(index, width, height) then
+                ns.RequestReload("size")
+            end
         end
 
         self:ClearFocus()
@@ -219,17 +221,6 @@ local function CreateSizeBox(row, index, dimension)
 
     return box
 end
-
-StaticPopupDialogs["DAMAGEMETERCOMPANION_RELOAD"] = {
-    text = "Window %d is shown. Until the UI is reloaded it carries the addon's taint and will log a warning per row in combat. Reload now?",
-    button1 = RELOADUI,
-    button2 = CANCEL,
-    OnAccept = function() ReloadUI() end,
-    timeout = 0,
-    whileDead = true,
-    hideOnEscape = true,
-    preferredIndex = 3,
-}
 
 local function ToggleShown(index)
     if ns.Windows.IsIndexShown(index) then
@@ -243,7 +234,7 @@ local function ToggleShown(index)
     end
 
     if ns.Windows.Show(index) then
-        StaticPopup_Show("DAMAGEMETERCOMPANION_RELOAD", index)
+        ns.RequestReload("shown state")
     end
 end
 
@@ -293,8 +284,11 @@ local function CreateRow(parent, index)
     row.Height:SetPoint("LEFT", row.Width, "RIGHT", 8, 0)
 
     -- The same lock the window's own gear dropdown offers, brought here so the
-    -- page that sets a size can also stop that size being dragged away. Routed
-    -- through the window's owner, never DamageMeter, so it is correct for ours.
+    -- page that sets a size can also stop that size being dragged away.
+    -- SetSessionWindowLocked rebuilds the gear menu's generator, which from
+    -- our stack is a tainted closure that errors when the menu opens in
+    -- combat - hence the reload prompt. Blizzard's own lock click rebuilds it
+    -- clean, and so does a reload.
     row.Lock = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.Lock:SetPoint("LEFT", row.Height, "RIGHT", 16, 0)
     row.Lock.Text:SetText("lock")
@@ -302,6 +296,7 @@ local function CreateRow(parent, index)
         local window = ns.Windows.Get(index)
         if window then
             window:GetDamageMeterOwner():SetSessionWindowLocked(window, self:GetChecked())
+            ns.RequestReload("lock")
         end
         RefreshWindowPanel()
     end)
@@ -517,11 +512,18 @@ function Config.BuildWindowPanel()
 
     -- Window 1 is skipped: its owner refuses the lock regardless.
     local function SetAllLocked(locked)
+        local changed = false
+
         ns.Windows.ForEach(function(window, index)
             if index ~= 1 then
                 window:GetDamageMeterOwner():SetSessionWindowLocked(window, locked)
+                changed = true
             end
         end)
+
+        if changed then
+            ns.RequestReload("locks")
+        end
 
         RefreshWindowPanel()
     end
