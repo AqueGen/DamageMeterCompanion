@@ -107,7 +107,19 @@ local function Repaint(entry)
     end
 
     local main, parenthetical, wantPercentage = Format.Choose(entry)
-    local text = Format.Compose(main, parenthetical, wantPercentage and Percentage(entry) or nil)
+    local percentage = wantPercentage and Percentage(entry) or nil
+
+    -- Complete in combat: the percentage needs value / total, and the client
+    -- refuses every route from two Secret amounts to a share - arithmetic,
+    -- Round, math.floor, FormatPercentage, a StatusBar's GetValue - each
+    -- probed in game on 2026-09-08. A Complete row without its percentage is
+    -- a different mode, so Blizzard's own text stays until the amounts are
+    -- readable again: percentage present, amounts in their abbreviation.
+    if wantPercentage and not percentage then
+        return
+    end
+
+    local text = Format.Compose(main, parenthetical, percentage)
 
     if text then
         entry:GetValue():SetText(text)

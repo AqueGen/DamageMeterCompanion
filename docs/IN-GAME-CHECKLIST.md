@@ -13,7 +13,7 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 ## 2. Numbers
 
 - [ ] In combat the bars read `56.72M` or `56.72M (40.6K)` depending on the Edit Mode Numbers setting, steady, no flicker back to `56716 K`.
-- [ ] Complete mode shows the percentage only when the values are readable, which is out of combat once Blizzard has refreshed with plain rows.
+- [ ] Complete mode in combat shows Blizzard's own text with the percentage (`3267 K (40,639) 18%`); out of combat, once Blizzard has refreshed with plain rows, it reads `3.27M (40.6K) 18%`. Minimal and Compact read in our abbreviation in combat too.
 - [ ] The spell breakdown (opened with Blizzard's own click) reads the full form.
 - [ ] Turning Readable numbers off puts Blizzard's text back within a moment; on again re-formats.
 - [ ] A full pull with the breakdown open and closed, then leave combat: **no `attempt to compare` warnings**.

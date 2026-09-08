@@ -240,6 +240,32 @@ function ns.Probe()
     local current = C_CVar.GetCVar("damageMeterEnabled")
     local ok, err = pcall(C_CVar.SetCVar, "damageMeterEnabled", current)
     ns.Print("SetCVar(damageMeterEnabled) allowed: " .. tostring(ok) .. (ok and "" or (" - " .. tostring(err))))
+
+    -- Which operations a Secret amount survives. The percentage in the
+    -- Complete mode needs one of these to work in combat.
+    if elementData and issecretvalue(elementData.totalAmount) then
+        local value, total = elementData.totalAmount, elementData.sessionTotalAmount
+        local attempts = {
+            { "value / total", function() return value / total end },
+            { "value * 100", function() return value * 100 end },
+            { "Round(value)", function() return Round(value) end },
+            { "math.floor(value)", function() return math.floor(value) end },
+            { "format %d", function() return ("%d"):format(value) end },
+            { "format %.0f", function() return ("%.0f"):format(value) end },
+            { "FormatPercentage(value)", function() return FormatPercentage(value) end },
+            { "statusbar ratio", function()
+                local bar = CreateFrame("StatusBar")
+                bar:SetMinMaxValues(0, total)
+                bar:SetValue(value)
+                return bar:GetValue()
+            end },
+        }
+
+        for _, attempt in ipairs(attempts) do
+            local ok, result = pcall(attempt[2])
+            ns.Print(("%s: %s%s"):format(attempt[1], ok and "ok" or "ERR", ok and (", secret " .. tostring(issecretvalue(result))) or (" - " .. tostring(result))))
+        end
+    end
 end
 
 -- One line per window: what the addon can see about it, for bug reports.

@@ -6,7 +6,7 @@ Retail only, patch 12.1. No libraries, no dependencies.
 
 ## What it adds
 
-**Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. The percentage is the one part that needs arithmetic, so it appears only when the values are readable, out of combat.
+**Readable numbers.** `56716 K` becomes `56.72M`, in combat too. The abbreviation is the client's own routine, which accepts the Secret values an addon may not read and hands back a string the bar may show - the same chain Details paints with. Each of Blizzard's three Numbers modes keeps its own layout - the same format strings and rounding as without the addon. The percentage in Complete is the one part that needs arithmetic, which the client refuses on Secret values by every route, so in combat a Complete row is left as Blizzard paints it (percentage present, their abbreviation) and takes our abbreviation again once the values are readable.
 
 **Window snapping.** Drag a window near another and a green bar shows which edges will meet. Release and they attach: the pair moves together, and the axis you joined on matches size. Windows chain, a gap between them is configurable, and a window dropped near a screen edge lands flush with it.
 
