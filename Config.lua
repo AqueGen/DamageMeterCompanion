@@ -211,6 +211,9 @@ local function CreateSizeBox(row, index, dimension)
             -- the Edit Mode routing - so this box does not need to know which
             -- kind of window it is editing.
             if ns.Windows.SetSize(index, width, height) then
+                -- The OnSizeChanged hook pushes only hand resizes, so a typed
+                -- size carries its matched neighbours along from here.
+                ns.Snap.PushSize(index)
                 ns.RequestReload("size")
             end
         end
@@ -286,9 +289,10 @@ local function CreateRow(parent, index)
     -- The same lock the window's own gear dropdown offers, brought here so the
     -- page that sets a size can also stop that size being dragged away.
     -- SetSessionWindowLocked rebuilds the gear menu's generator, which from
-    -- our stack is a tainted closure that errors when the menu opens in
-    -- combat - hence the reload prompt. Blizzard's own lock click rebuilds it
-    -- clean, and so does a reload.
+    -- our stack is a tainted closure that errors if that menu is opened in
+    -- combat before a reload. No prompt here by the user's decision: a lock is
+    -- set once and the gear menu is rarely opened mid-fight. Blizzard's own
+    -- lock click rebuilds it clean, and so does a reload.
     row.Lock = CreateFrame("CheckButton", nil, row, "UICheckButtonTemplate")
     row.Lock:SetPoint("LEFT", row.Height, "RIGHT", 16, 0)
     row.Lock.Text:SetText("lock")
@@ -296,7 +300,6 @@ local function CreateRow(parent, index)
         local window = ns.Windows.Get(index)
         if window then
             window:GetDamageMeterOwner():SetSessionWindowLocked(window, self:GetChecked())
-            ns.RequestReload("lock")
         end
         RefreshWindowPanel()
     end)
@@ -512,18 +515,11 @@ function Config.BuildWindowPanel()
 
     -- Window 1 is skipped: its owner refuses the lock regardless.
     local function SetAllLocked(locked)
-        local changed = false
-
         ns.Windows.ForEach(function(window, index)
             if index ~= 1 then
                 window:GetDamageMeterOwner():SetSessionWindowLocked(window, locked)
-                changed = true
             end
         end)
-
-        if changed then
-            ns.RequestReload("locks")
-        end
 
         RefreshWindowPanel()
     end

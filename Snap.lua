@@ -258,7 +258,11 @@ function Snap.OffsetForGap(point, relPoint, gap)
     return direction[1] * gap, direction[2] * gap
 end
 
-function Snap.ApplyLink(index)
+-- pushSize is passed only from a user gesture. At login this runs from the
+-- SetupSessionWindow hook, before Blizzard's frame cache has restored the
+-- windows' sizes, so a push here would resize template-sized windows from
+-- our stack and taint them; the cache brings the matched sizes back itself.
+function Snap.ApplyLink(index, pushSize)
     local link = GetLinks()[index]
     local window = Windows.Get(index)
     local target = link and Windows.Get(link.to)
@@ -282,11 +286,11 @@ function Snap.ApplyLink(index)
     window:SetPoint(link.point, target, link.relPoint, x, y)
 
     -- Left user-placed on purpose. Blizzard's frame cache then restores the
-    -- window's size at login as well as its position, so PushSize below finds
-    -- the matched size already in place and sets nothing - a size set from
-    -- our stack at login would taint the window for the whole session. The
-    -- cached absolute point is harmless: this anchor goes back on top of it.
-    Snap.PushSize(link.to)
+    -- window's size at login as well as its position. The cached absolute
+    -- point is harmless: this anchor goes back on top of it.
+    if pushSize then
+        Snap.PushSize(link.to)
+    end
 end
 
 function Snap.ApplyAll()
@@ -311,7 +315,7 @@ function Snap.SetLink(index, link)
     end
 
     GetLinks()[index] = link
-    Snap.ApplyLink(index)
+    Snap.ApplyLink(index, true)
 
     return true
 end
@@ -460,14 +464,23 @@ function Snap.Enable()
     -- OnDragStop script, and whether `method="OnDragStop"` resolves the
     -- function at load or at call time is not determinable from source. A
     -- script hook is correct under either.
+    -- Only a size change the player is making by hand propagates: Blizzard
+    -- flags a secondary window with isResizing while its handle is dragged
+    -- (DamageMeterSessionWindow.lua:536), and window 1 is sized in Edit Mode.
+    -- The other OnSizeChanged sources - the frame cache restoring sizes at
+    -- login, SetupSessionWindow - must not resize anything from our stack.
+    local function OnSizeChanged(window, index)
+        if window.isResizing or (index == 1 and EditModeManagerFrame:IsEditModeActive()) then
+            Snap.PushSize(index)
+        end
+    end
+
     local function AttachWindow(window, index)
         window:HookScript("OnDragStop", OnDragStop)
         window:HookScript("OnDragStart", function() OnDragStart(window, index) end)
 
         window.dmtSizeHooked = true
-        window:HookScript("OnSizeChanged", function()
-            Snap.PushSize(index)
-        end)
+        window:HookScript("OnSizeChanged", function() OnSizeChanged(window, index) end)
     end
 
     Windows.ForEach(AttachWindow)
@@ -486,9 +499,7 @@ function Snap.Enable()
         if window and not window.dmtSizeHooked then
             window.dmtSizeHooked = true
 
-            window:HookScript("OnSizeChanged", function()
-                Snap.PushSize(windowDataIndex)
-            end)
+            window:HookScript("OnSizeChanged", function() OnSizeChanged(window, windowDataIndex) end)
 
             window:HookScript("OnDragStop", OnDragStop)
             window:HookScript("OnDragStart", function() OnDragStart(window, windowDataIndex) end)
