@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.6.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.5.0...v0.6.0) (2026-09-08)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove the bar menu and windows beyond Blizzard's three - both confirmed in game to taint the meter until reload; Shown on the panel offers a reload
+
+### Features
+
+* remove the bar menu and windows beyond Blizzard's three - both confirmed in game to taint the meter until reload; Shown on the panel offers a reload ([e5568c5](https://github.com/AqueGen/DamageMeterCompanion/commit/e5568c530092d08816e77ccdd3435a03b11e1bca))
+
+
+### Bug Fixes
+
+* compose readable numbers with Blizzard's own format strings and rounding ([b78f450](https://github.com/AqueGen/DamageMeterCompanion/commit/b78f450b9479b15fc9ec3eb3aa11ff5888a6ef68))
+* flag linked windows user-placed so Blizzard's frame cache restores their size ([8c79b60](https://github.com/AqueGen/DamageMeterCompanion/commit/8c79b602a4ed7427de1a9ad05fa0a961d29f58e8))
+* keep a snapped chain clean across reloads and prompt once after lock or size ([70fa60f](https://github.com/AqueGen/DamageMeterCompanion/commit/70fa60fb85e7c6557ad0b25f5fa5332b42c736c3))
+* leave Complete rows to Blizzard in combat instead of dropping the percentage ([65f8872](https://github.com/AqueGen/DamageMeterCompanion/commit/65f887268b3bd8562a54e75f522a893fbd1de276))
+* no menu entries of ours in combat - a tainted entry makes the menu layout measure Secret rects; the type-menu additions are gone, the gear settings entry is out-of-combat only ([ba6139d](https://github.com/AqueGen/DamageMeterCompanion/commit/ba6139dd42c410fa24b885cf6e0e4561ce1ab2e9))
+* push matched sizes only from a hand resize or a typed size, no prompt for locks ([4228dd5](https://github.com/AqueGen/DamageMeterCompanion/commit/4228dd5c6aae3d28a61062e19f8545f08d20e336))
+
 ## [0.5.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.4.0...v0.5.0) (2026-09-07)
 
 
