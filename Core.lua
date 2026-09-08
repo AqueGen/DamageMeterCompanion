@@ -6,6 +6,7 @@ ns.defaults = {
     snapThreshold = 50,
     idleAlpha = 0.4,
     strata = "MEDIUM",
+    logLink = true,
 }
 
 ns.charDefaults = {
