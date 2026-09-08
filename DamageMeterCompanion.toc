@@ -19,4 +19,7 @@ Format.lua
 Snap.lua
 Preview.lua
 Presence.lua
+LogLinkRealms.lua
+LogLinkUrl.lua
+LogLink.lua
 Config.lua

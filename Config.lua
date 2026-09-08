@@ -97,6 +97,11 @@ local function BuildBehaviourOptions()
     AddCheckbox("snap", "Snap windows together",
         "Dragging a window near another attaches it, and they move and resize together.")
 
+    AddCheckbox("logLink", "Warcraft Logs link in player menus",
+        "Off by default. Switch it on to right-click a player - in a unit frame, chat, the guild roster or the group finder - "
+            .. "and copy their Warcraft Logs page, opened on the Mythic+ season rather than the raid tab. Off leaves every menu "
+            .. "exactly as Blizzard built it. The /wcl command works either way.")
+
     AddSlider("snapThreshold", "Snap distance",
         "How close an edge must be, in pixels, before it snaps.", 5, 50, 1)
 
