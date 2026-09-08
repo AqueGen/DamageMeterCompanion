@@ -6,7 +6,7 @@
 ## Version: 0.6.0
 ## X-Curse-Version: 0.6.0
 # x-release-please-end
-## X-License: MIT
+## X-License: All Rights Reserved
 ## X-Website: https://github.com/AqueGen/DamageMeterCompanion
 ## X-Curse-Project-ID: 1686059
 ## SavedVariables: DamageMeterCompanionDB, DamageMeterTweaksDB
