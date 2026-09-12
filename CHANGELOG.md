@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.8.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.7.0...v0.8.0) (2026-09-12)
+
+
+### Features
+
+* sign the settings category - Made in Ukraine ([#7](https://github.com/AqueGen/DamageMeterCompanion/issues/7)) ([a6987ba](https://github.com/AqueGen/DamageMeterCompanion/commit/a6987ba87cf1eea62be746903d68db9f6ded0e20))
+
+
+### Bug Fixes
+
+* follow the meter when the Edit Mode layout changes ([#8](https://github.com/AqueGen/DamageMeterCompanion/issues/8)) ([add9184](https://github.com/AqueGen/DamageMeterCompanion/commit/add9184c2a1d4d2f2db54500411493f69513eade))
+
 ## [0.7.0](https://github.com/AqueGen/DamageMeterCompanion/compare/v0.6.0...v0.7.0) (2026-09-08)
 
 
