@@ -302,6 +302,34 @@ function Snap.ApplyAll()
     end
 end
 
+-- Set once the login pass has re-applied the anchors. Until then a layout
+-- change may only move windows, never size them - see OnLayoutChanged.
+Snap.loginSettled = false
+
+-- Switching the Edit Mode layout moves and resizes the DamageMeter system
+-- frame itself (EditModeSystemTemplates.lua:350-373, 3499-3507). Window 1 is
+-- anchored to that frame (DamageMeter.lua:312-314) and so follows it, but
+-- windows 2 and 3 are anchored to UIParent (DamageMeter.lua:318) and nothing
+-- re-anchors them: SetupSessionWindow does not run on a layout change.
+--
+-- The size is the half the existing hooks cannot catch. A layout assigned to a
+-- specialization switches with EditModeManagerFrame:IsEditModeActive() false
+-- (EditModeManager.lua:193-199) and without Blizzard's isResizing flag, so
+-- OnSizeChanged ignores window 1's new size and a matched chain is left at the
+-- old one.
+function Snap.OnLayoutChanged()
+    Snap.ApplyAll()
+
+    -- Edit Mode publishes its layout during login too, and pushing a size then
+    -- is what commit 70fa60f had to undo: the frame cache has not restored the
+    -- windows' sizes yet, so every matched link would resize a template-sized
+    -- window from our stack and taint the session from its first fight.
+    -- Anchors are clean at any time; sizes wait for the login pass.
+    if Snap.loginSettled then
+        Snap.PushSize(1)
+    end
+end
+
 -- Every validation lives here rather than at the call site, because the
 -- settings panel in Task 9 sets links too. A link from the primary window, a
 -- self-link, or one that closes a cycle is refused: the first cannot be
@@ -520,8 +548,23 @@ function Snap.Enable()
 
     local reapply = CreateFrame("Frame")
     reapply:RegisterEvent("PLAYER_ENTERING_WORLD")
-    reapply:SetScript("OnEvent", function()
-        C_Timer.After(0, Snap.ApplyAll)
+
+    -- Fires for a manual switch in the Edit Mode UI and for a layout a
+    -- specialization change brings in, which is the case no other hook sees.
+    reapply:RegisterEvent("EDIT_MODE_LAYOUTS_UPDATED")
+
+    reapply:SetScript("OnEvent", function(_, event)
+        if event == "EDIT_MODE_LAYOUTS_UPDATED" then
+            -- Edit Mode re-anchors and resizes the system frame while handling
+            -- this event; the next frame is when our anchors go on top.
+            C_Timer.After(0, Snap.OnLayoutChanged)
+            return
+        end
+
+        C_Timer.After(0, function()
+            Snap.ApplyAll()
+            Snap.loginSettled = true
+        end)
     end)
 end
 
