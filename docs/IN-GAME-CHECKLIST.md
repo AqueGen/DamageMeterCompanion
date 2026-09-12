@@ -35,6 +35,16 @@ Setup: `/reload`, hit a target dummy so the meter has data, keep BugSack open. *
 - [ ] **With a matched link in place, `/reload`, touch nothing, fight**: no reload popup at login and BugSack stays empty. This is the case that used to taint every session.
 - [ ] Resizing window 2 by its handle while window 3 matches it shows the reload popup once; after the reload, BugSack stays empty in the next fight.
 
+## 3a. Following an Edit Mode layout switch
+
+Needs two Edit Mode layouts whose damage meter sits in a different place, and whose Frame Width differs. Assign the second layout to a second specialization.
+
+- [ ] Switch layout by hand in the Edit Mode UI: window 1 moves with the layout and windows 2 and 3 stay attached to it.
+- [ ] Same switch with differing Frame Width: the matched windows take window 1's new width, and the reload popup appears once.
+- [ ] Switch specialization so the layout changes with the Edit Mode UI closed: the chain follows, both position and matched width.
+- [ ] Switch back to a layout whose width is the same as the current one: no reload popup (the size is only set when it differs).
+- [ ] `/reload` on a character whose layouts have different widths, touch nothing, fight: **no reload popup at login** and BugSack stays empty. Login must never push a size.
+
 ## 4. Transparency and layer
 
 - [ ] Mouse away: roughly 40 percent of the Edit Mode transparency. Mouse over: the Edit Mode value.

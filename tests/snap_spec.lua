@@ -270,3 +270,36 @@ describe("Snap.FindScreenSnap", function()
         assert.is_nil(Snap.FindScreenSnap(Rect(2, 500, 500, 400, 200), screen, 50))
     end)
 end)
+
+describe("Snap.OnLayoutChanged", function()
+    local applyAll, pushSize, calls
+
+    before_each(function()
+        applyAll, pushSize = Snap.ApplyAll, Snap.PushSize
+        calls = {}
+
+        Snap.ApplyAll = function() table.insert(calls, "apply") end
+        Snap.PushSize = function(index) table.insert(calls, "push " .. tostring(index)) end
+    end)
+
+    after_each(function()
+        Snap.ApplyAll, Snap.PushSize = applyAll, pushSize
+        Snap.loginSettled = false
+    end)
+
+    it("re-anchors the links and pushes window 1's new size", function()
+        Snap.loginSettled = true
+
+        Snap.OnLayoutChanged()
+
+        assert.are.same({ "apply", "push 1" }, calls)
+    end)
+
+    it("re-anchors but pushes no size before the first login pass is done", function()
+        Snap.loginSettled = false
+
+        Snap.OnLayoutChanged()
+
+        assert.are.same({ "apply" }, calls)
+    end)
+end)
